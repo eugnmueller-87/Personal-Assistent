@@ -6,7 +6,7 @@
 
 ## Overview
 
-Spend Lens is the main procurement intelligence project. It uses a multi-agent architecture where specialized agents handle distinct procurement domains and funnel insights up to the Supervisor (eCaros).
+Spend Lens is the main procurement intelligence project. It uses a multi-agent architecture where specialized agents handle distinct procurement domains and funnel insights up to the Supervisor (Icarus).
 
 ## Sub-Projects
 
@@ -20,11 +20,11 @@ Spend Lens is the main procurement intelligence project. It uses a multi-agent a
 - [ ] Map spend categories and commodity structure
 - [ ] Design agent input/output schema
 - [ ] Build agent hierarchy (see sub-project)
-- [ ] Define reporting cadence to eCaros
+- [ ] Define reporting cadence to Icarus
 - [ ] Set up category manager access / delivery format
 
 ## Notes
 
-- Agents report into **eCaros** (Supervisor)
+- Agents report into **Icarus** (Supervisor)
 - Each agent covers a separate procurement commodity / domain
 - Output format for category managers TBD (dashboard / report / Slack / email)
