@@ -1,119 +1,145 @@
 # ORG EUGEN — Handover Document
-**Date:** 2026-04-29  
-**Session:** Google Calendar API, Gmail API, Telegram bot setup, ICARUS interactive bot planning
+**Last updated:** 2026-04-30
+**Covers:** All sessions from 2026-04-29 to present
 
 ---
 
-## What Was Built This Session
+## Current State — What's Live
 
-### 1. Google Calendar + Gmail API
-- **Auth script:** `workflows/gcal_auth.py`
-- **Credentials:** `credentials/google_calendar.json` (Desktop app OAuth — must be Desktop app type, not Web application)
-- **Token:** `credentials/token.json` (gitignored — never commit)
-- **Scopes granted:**
-  - `https://www.googleapis.com/auth/calendar`
-  - `https://www.googleapis.com/auth/gmail.modify`
-- **Python libraries installed** in SpendLens venv: `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib`
-- **To re-authenticate:** delete `credentials/token.json` and re-run `gcal_auth.py`
+### ICARUS Telegram Bot (@IcarusORG_bot)
+Fully operational personal AI assistant. Deployed on Railway free tier, always-on.
 
-### 2. Telegram Bot — @IcarusORG_bot
-- **Bot name:** ICARUS
-- **Username:** @IcarusORG_bot
-- **Token:** stored in `.env` as `TELEGRAM_BOT_TOKEN` and as GitHub Secret
-- **Chat ID:** stored in `.env` as `TELEGRAM_CHAT_ID`
-- **Status:** one-way notifications working (tested — message delivered)
-- **Next:** add `TELEGRAM_CHAT_ID` as GitHub Secret to enable Monday automation
+**Repos:**
+- Private (working copy): `C:\Users\eugnm\OneDrive\Desktop\ORG EUGEN\bot\`
+- Public (triggers Railway deploy): `C:\Users\eugnm\OneDrive\Desktop\Personal-Assistent\bot\`
+- Always mirror changes to both. Push public repo = Railway auto-redeploys.
 
-### 3. Python venv
-- SpendLens venv at `C:\Users\eugnm\OneDrive\Desktop\PROCUREMENT\PROCUREMENT\SpendLens_App\.venv\`
-- Used for all ORG EUGEN scripts (Python 3.14)
-- Run scripts with: `"C:\...\SpendLens_App\.venv\Scripts\python.exe" script.py`
+**Live capabilities:**
+| Capability | Detail |
+|---|---|
+| Commands | /calendar, /emails, /issues, /summary, /roadmap, /task |
+| Natural language — text | Claude Sonnet 4.6 tool-use agent |
+| Natural language — voice | OpenAI Whisper transcription |
+| Image / document analysis | Claude multimodal |
+| Google Calendar read + write | Europe/Berlin timezone, 1hr default duration |
+| Gmail | Important-only, newer_than:3d default, since_minutes for time queries |
+| Proactive email alerts | Every 15 min, Haiku urgency filter, deduplication via msg IDs |
+| Morning briefing | 06:00 Berlin, Claude-composed, APScheduler job_queue |
+| GitHub Issues | Read + create |
+| Roadmap reader | Reads markdown from private ORG-EUGEN repo |
+| Multi-model routing | Haiku for simple, Sonnet 4.6 for complex |
+| Persistent memory | Upstash Redis — survives restarts AND redeploys |
 
----
-
-## Planned Next — ICARUS Interactive Bot
-
-**Goal:** Send a message to @IcarusORG_bot and get a real response (calendar, emails, GitHub issues).
-
-**Architecture:**
-- `python-telegram-bot` — bot framework
-- Claude API — natural language understanding and routing
-- Gmail + Calendar APIs — already authenticated
-- GitHub API — already have token
-- **Railway** — free hosting, always-on, deploys from GitHub repo
-
-**Commands planned:**
-- `/calendar` — this week's events
-- `/emails` — unread email summary
-- `/issues` — open GitHub issues
-- `/summary` — everything combined
-- Free text — Claude routes to the right API
-
-**Key challenge:** Google credentials are file-based locally. Railway needs them as environment variables. Solution: extract `refresh_token` from `token.json` and store in Railway env vars.
-
-**Files to create:**
-- `bot/main.py` — bot entry point + handlers
-- `bot/calendar_client.py` — Google Calendar functions
-- `bot/gmail_client.py` — Gmail functions
-- `requirements.txt` — bot dependencies
+**Environment variables (Railway):**
+```
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+GITHUB_TOKEN=               ← set to no expiration
+GITHUB_REPO=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+UPSTASH_REDIS_URL=
+UPSTASH_REDIS_TOKEN=
+```
 
 ---
 
-## Monday Automation (Not Yet Built)
+## Architecture
 
-**Goal:** Every Monday 08:00 UTC, ICARUS sends one Telegram message with:
-- Link to the weekly review GitHub issue
-- This week's calendar events
-- Unread email count / flagged emails
-
-**Requires:**
-- GitHub Secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- Update `.github/workflows/weekly-review.yml` to add calendar fetch + Telegram push step
-
----
-
-## Active GitHub Secrets (as of this session)
-| Secret | Purpose |
-|--------|---------|
-| `TELEGRAM_BOT_TOKEN` | ICARUS bot token |
-| `TELEGRAM_CHAT_ID` | **Still needs to be added** |
-
----
-
-## Important Notes for Next Session
-
-1. **Add `TELEGRAM_CHAT_ID` as GitHub Secret** — not done yet
-2. **Desktop app credential** — when recreating OAuth, always select "Desktop app" not "Web application". The JSON must have `"installed"` at top level, not `"web"`
-3. **Test users** — your Google account must be added under OAuth consent screen → Audience → Test users
-4. **SpendLens venv** — use this for all ORG EUGEN Python scripts, no separate venv needed yet
-5. **Railway setup** — next major step: deploy ICARUS as interactive bot
-6. **Weekly review habit** — GitHub Action creates issue every Monday, bot notification not yet wired up
+```
+ICARUS Telegram (command center — the only interface)
+     │
+     ├── Personal ops (live)
+     │     ├── Google Calendar API (read + write)
+     │     ├── Gmail API (modify scope)
+     │     ├── GitHub Issues API
+     │     └── Upstash Redis (persistent memory)
+     │
+     ├── Spend Lens agents (planned)
+     │     └── Trigger analyses, receive procurement alerts
+     │
+     └── Marketing agent (planned)
+           └── LinkedIn post drafting + publishing
+```
 
 ---
 
-## Previous Session Summary (2026-04-29, Session 1)
+## Files
 
-### SpendLens App — Phase 0 Complete
-**Location:** `C:\Users\eugnm\OneDrive\Desktop\PROCUREMENT\PROCUREMENT\SpendLens_App\`  
-**Start:** `PYTHONUTF8=1 panel serve app.py --show --port 5006` (Git Bash)  
-**Tech:** Python + Panel (HoloViz), SQLite, Claude API (Sonnet + Haiku), 16 RSS feeds
+```
+bot/
+├── main.py           — Telegram handlers + scheduled jobs (briefing, email alerts)
+├── claude_router.py  — Multi-model routing, tool-use loop, Redis memory, image analysis
+├── google_client.py  — Calendar (read/write/today), Gmail (read/alerts)
+├── github_client.py  — Issues, roadmap reader
+└── requirements.txt  — python-telegram-bot[job-queue], anthropic, openai, upstash-redis, ...
 
-**Built and working:**
-- Full 5-stage upload pipeline
-- Dashboard (KPIs, spend evolution, budget vs actuals, health gauges)
-- Deep Dive tab (treemap, supplier drill-down, risk bubbles)
-- Compliance Scorecard (ABC tiers, contract status, inline editing)
-- CFO Excel export
-- Icarus — market intelligence agent (RSS feeds, Quick/Deep scan, Ask, RFP brief, weekly brief)
-- Category Strategy tab — 7 AI frameworks + HTML slide deck export
-- ECB FX rates — already implemented in `data_cleanup.py`
+ROADMAP.md            — Big picture vision + phase tracker
+HANDOVER.md           — This file
+projects/
+├── icarus-bot.md     — Full ICARUS status + planned agent hub
+├── spend-lens.md     — Spend Lens status + ICARUS connection plan
+├── spend-lens-agents.md — 4-agent hierarchy, connects up to ICARUS Telegram
+└── org-eugen-system.md  — System overview + task tracker
+```
 
-**Blocked:** Grok live search — code complete, needs xAI account upgrade
+---
 
-### Spend Lens — Next Priorities
-**Immediate API integrations (free):**
-1. OpenCorporates — supplier legal enrichment (~1 day)
-2. Quandl / Nasdaq Data Link — commodity price context for Icarus (~2 days)
+## Bugs Fixed (for reference)
 
-**Critical path to first revenue (Q3 2026):**
-Enterprise security layer — HTTPS, encryption at rest, SSO, RBAC, audit logging, Docker packaging (~8 days total). Target: pilot client at €299–599/month.
+| Bug | Fix |
+|---|---|
+| Railway vars rejected | Remove all quotes from values in Raw Editor |
+| Railway vars wiped on redeploy | Keep local backup, re-paste if needed |
+| Voice handler silent failure | try/except around route(), surface errors to Telegram |
+| `KeyError: 'number'` in create_issue | Guard: `if "number" not in issue` before access |
+| GitHub token expired | Regenerated with no expiration |
+| Gmail 403 accessNotConfigured | Enabled Gmail API in Google Cloud Console project 1098132567527 |
+| Emails from 2016 | Added newer_than:3d default, since_minutes for precise filtering |
+| Calendar write missing | Added create_calendar_event tool (was creating GitHub issues instead) |
+
+---
+
+## What's Next (prioritised)
+
+1. **Email reply** — reply or archive emails directly from Telegram (gmail.modify scope already active, ~1 hour work)
+2. **Web search** — live data tool via Brave or Tavily API (~2 hours)
+3. **Spend Lens connection** — ICARUS Telegram triggers Spend Lens analyses, receives alerts
+4. **LinkedIn marketing agent** — Claude drafts, ICARUS previews, confirm to publish
+5. **Weekly AI summary** — Claude reviews the week, suggests priorities
+
+---
+
+## Key Gotchas for Next Session
+
+1. **Google OAuth must be Desktop app type** — JSON must contain `"installed"` key, not `"web"`
+2. **Railway Raw Editor** — no quotes around env var values, ever
+3. **Railway vars can be wiped** — always keep local backup of all 11 vars
+4. **Mirror both repos** — every code change goes to ORG EUGEN bot/ AND Personal-Assistent bot/
+5. **GitHub token** — set to no expiration, lives in Railway vars
+6. **Upstash Redis** — free tier at upstash.com, 2 vars: UPSTASH_REDIS_URL + UPSTASH_REDIS_TOKEN
+7. **Email filter** — current query uses newer_than:3d + is:important + noreply exclusions. Don't simplify it, it was tuned over 3 iterations.
+8. **APScheduler** — runs inside Railway bot via job_queue (python-telegram-bot[job-queue]). Morning brief at 06:00 Berlin. Email check every 900s.
+9. **LinkedIn API** — restrictive, requires partner access for posting. When building the marketing agent, evaluate n8n/Make.com as middleware first.
+
+---
+
+## Spend Lens — Current State
+
+**Location:** `C:\Users\eugnm\OneDrive\Desktop\PROCUREMENT\PROCUREMENT\SpendLens_App\`
+**Start:** `PYTHONUTF8=1 panel serve app.py --show --port 5006` (Git Bash)
+**Stack:** Python + Panel, SQLite, Claude API (Sonnet + Haiku), 16 RSS feeds
+
+**Live:** Full upload pipeline, dashboard, deep dive, compliance scorecard, CFO export, Icarus market intelligence agent, category strategy (7 AI frameworks + HTML export)
+**Blocked:** Grok live search — code complete, needs xAI tier upgrade
+**Critical path to revenue:** Security layer S1–S7 (~8 days) → pilot client €299–599/month → Q3 2026 target
+
+---
+
+## GitHub Profile
+- **eugnmueller-87/eugnmueller-87** — profile README updated, shows SpendLens + ICARUS
+- **eugnmueller-87/Personal-Assistent** — public ICARUS repo, triggers Railway deploys
+- **eugnmueller-87/ORG-EUGEN** — private ops repo, all project files + roadmap
