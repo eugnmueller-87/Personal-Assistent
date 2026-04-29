@@ -4,8 +4,24 @@
 
 ---
 
+## Vision — ICARUS as Command Center
+
+ICARUS Telegram is the single interface for everything. One conversation, one place.
+Every agent built — personal ops, procurement AI, marketing — plugs into ICARUS.
+You talk to ICARUS. ICARUS commands the agents.
+
+```
+ICARUS Telegram (the only interface you need)
+     │
+     ├── Personal ops        — calendar, email, tasks, memory (live)
+     ├── Spend Lens agents   — trigger analyses, surface insights (planned)
+     ├── Marketing agent     — draft + post LinkedIn updates (planned)
+     └── Future agents       — plug in as tools, report back here
+```
+
+---
+
 ## Phase 1 — Foundation ✅
-**Goal:** Get the basics in place so nothing falls through the cracks.
 
 - [x] Create private GitHub repo (ORG-EUGEN)
 - [x] Set up TODO.md + ROADMAP.md
@@ -15,53 +31,57 @@
 
 ---
 
-## Phase 2 — Automation + Mobility Layer ✅ (mostly done)
-**Goal:** Reduce manual work, get notified on what matters, work from anywhere.
+## Phase 2 — ICARUS Personal Ops ✅
 
-- [x] Telegram bot (@IcarusORG_bot) — live, one-way notifications
-- [x] Google Calendar API — read + write (OAuth, Europe/Berlin timezone)
-- [x] Gmail API — connected (modify scope, important-only filter, time-based queries)
-- [x] ICARUS interactive bot — deployed on Railway (always-on, free tier)
-- [x] Claude tool-use agent — ICARUS decides which tools to call, chains multiple tools, asks clarifying questions
-- [x] Multi-model routing — Haiku for simple commands, Sonnet 4.6 for complex reasoning (~€4/month)
-- [x] Voice messages — OpenAI Whisper transcription, acts on spoken requests
-- [x] Image/document analysis — send any photo, Claude extracts key info (invoices, contracts, whiteboards)
-- [x] Calendar write — create events from natural language or voice
-- [x] Conversation memory — per-session context (resets on restart)
-- [ ] Morning briefing — daily 08:00 push: calendar + emails + open tasks
-- [ ] Proactive email alerts — notify when flagged emails arrive
-- [ ] n8n / Make.com automation workflows
-- [ ] Mobilized work environment — device-agnostic setup
-- [ ] Cloud dev environment (GitHub Codespaces or similar)
-- [ ] Synced notes + docs across all devices
+- [x] Telegram bot — live, always-on (Railway free tier)
+- [x] Google Calendar — read + write (natural language, voice)
+- [x] Gmail — important-only filter, time-based queries, proactive alerts every 15 min
+- [x] GitHub Issues — read, create, roadmap reader
+- [x] Claude tool-use agent — chains tools, asks clarifying questions
+- [x] Multi-model routing — Haiku for simple, Sonnet 4.6 for complex (~€4/month)
+- [x] Voice messages — OpenAI Whisper, acts on spoken requests
+- [x] Image/document analysis — invoices, contracts, whiteboards
+- [x] Morning briefing — 06:00 Berlin, Claude-composed
+- [x] Proactive email alerts — Haiku urgency filter, no spam
+- [x] Persistent memory — Upstash Redis, survives restarts and redeploys
 
 ---
 
-## Phase 3 — Agent Layer (Next)
-**Goal:** ICARUS gets smarter, more proactive, and survives restarts.
+## Phase 3 — ICARUS Agent Hub (Next)
+**Goal:** ICARUS becomes the orchestrator. Every project and agent reports here.
 
-- [ ] Persistent memory — conversation history survives Railway restarts (SQLite or file)
-- [ ] Email reply — reply or archive emails directly from Telegram (gmail.modify scope ready)
-- [ ] Web search — live data tool (prices, news, weather) via Brave or Tavily API
-- [ ] Proactive alerts — poll Gmail every 15 min, push Telegram on important new email
-- [ ] Weekly AI summary — Claude summarizes the week and suggests priorities
-- [ ] Whiteboard agent (Miro/Excalidraw API)
-- [ ] Multi-agent orchestration (Claude tool use)
+### Personal ops (remaining)
+- [ ] Email reply — reply or archive directly from Telegram (gmail.modify scope ready)
+- [ ] Web search — live data tool via Brave or Tavily API
+- [ ] Weekly AI summary — Claude reviews the week, suggests priorities
+
+### Spend Lens connection
+- [ ] ICARUS can trigger a Spend Lens analysis from Telegram ("run spend analysis on last month")
+- [ ] Spend Lens agents report results back to ICARUS Telegram
+- [ ] Surface key procurement insights, compliance flags, and supplier alerts in Telegram
+- [ ] ICARUS can create Spend Lens tasks from voice ("flag supplier X for review")
+
+### Marketing agent
+- [ ] LinkedIn post agent — Claude drafts posts about project milestones, updates, launches
+- [ ] ICARUS triggers from Telegram ("post about ICARUS calendar write feature")
+- [ ] Claude generates post → ICARUS previews in Telegram → confirm to publish
+- [ ] Auto-post on major milestones (configurable)
+- [ ] Post history tracked in GitHub Issues
 
 ---
 
-## Phase 4 — Scale (4–6 months)
-**Goal:** The system works mostly on its own.
+## Phase 4 — Autonomous Operations
+**Goal:** The system runs mostly on its own. You review, not manage.
 
 - [ ] Fully automated weekly/monthly reviews
-- [ ] Cross-project dependency tracking
-- [ ] Dashboard (Notion or custom web app)
-- [ ] Company deployment — separate Railway instance with company Google Workspace credentials
-- [ ] Team onboarding (if applicable)
+- [ ] Cross-project dependency tracking (ICARUS surfaces blockers across Spend Lens + ORG EUGEN)
+- [ ] Company deployment — separate Railway instance, company Google Workspace
+- [ ] Agent status dashboard — one view of all active agents and their last actions
+- [ ] ICARUS escalation — agents flag decisions that need human input, ICARUS queues them
 
 ---
 
-## ICARUS — Current Capabilities (as of 2026-04-29)
+## ICARUS — Current Capabilities (as of 2026-04-30)
 
 | Capability | Status |
 |---|---|
@@ -69,24 +89,25 @@
 | Natural language — text | Live |
 | Natural language — voice (Whisper) | Live |
 | Image / document analysis | Live |
-| Google Calendar read | Live |
-| Google Calendar write | Live |
-| Gmail read (important only, last 3 days default) | Live |
+| Google Calendar read + write | Live |
+| Gmail read (important only, time-filtered) | Live |
 | GitHub Issues read + create | Live |
 | Roadmap reader | Live |
 | Multi-model routing (Haiku + Sonnet) | Live |
-| Conversation memory (session) | Live |
-| Persistent memory (across restarts) | Planned |
-| Email reply | Planned |
+| Morning briefing 06:00 Berlin | Live |
+| Proactive email alerts (15 min polling) | Live |
+| Persistent memory (Upstash Redis) | Live |
+| Email reply from Telegram | Planned |
 | Web search | Planned |
-| Morning briefing | Planned |
-| Proactive email alerts | Planned |
+| Spend Lens agent connection | Planned |
+| LinkedIn marketing agent | Planned |
+| Weekly AI summary | Planned |
 
 ---
 
 ## Key Principles
-1. **Capture everything** — one inbox, zero friction
-2. **Review regularly** — weekly at minimum
+1. **One interface** — ICARUS Telegram is the only place you need to go
+2. **Capture everything** — one inbox, zero friction
 3. **Automate the boring** — if you do it twice, automate it
 4. **Ship small** — working systems beat perfect plans
-5. **Work from anywhere** — no task or tool should require a specific machine
+5. **Agents report up** — every agent connects back to ICARUS
