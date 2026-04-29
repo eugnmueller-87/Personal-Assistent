@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Parent Project:** [Spend Lens](spend-lens.md)  
-**Goal:** A hierarchy of specialized AI agents, each covering a procurement domain, all reporting into eCaros (Head of Procurement).
+**Goal:** A hierarchy of specialized AI agents, each covering a procurement domain, all reporting into eCaros (Supervisor).
 
 ---
 
@@ -11,7 +11,7 @@
 ```
                     ┌─────────────────────┐
                     │       eCaros        │
-                    │  Head of Procurement│
+                    │    (Supervisor)     │
                     │   (Orchestrator)    │
                     └──────────┬──────────┘
                                │
@@ -44,12 +44,12 @@
 **Focus:** Supplier risk, supply chain disruption, concentration risk  
 **Inputs:** Supplier data, market signals, news feeds, financial ratings  
 **Outputs:** Risk scores, alerts, mitigation recommendations  
-**Serves:** Category managers and eCaros for risk decisions
+**Serves:** Category managers and eCaros (Supervisor) for risk decisions
 
 - [ ] Define risk scoring model
 - [ ] Identify external data sources (Dun & Bradstreet, news APIs)
 - [ ] Design alert thresholds
-- [ ] Build escalation logic to eCaros
+- [ ] Build escalation logic to eCaros (Supervisor)
 
 ---
 
@@ -79,7 +79,7 @@
 
 ---
 
-## eCaros — Orchestrator (Head of Procurement)
+## eCaros — Supervisor (Orchestrator)
 **Role:** Receives consolidated reports from all 4 agents. Makes final decisions on risk, sourcing, and strategy.  
 **Inputs:** Agent summaries (Analytics + Risk + Compliance + RFP)  
 **Outputs:** Strategic direction, escalation decisions, category manager guidance
