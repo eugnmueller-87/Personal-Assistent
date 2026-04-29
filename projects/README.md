@@ -27,3 +27,5 @@ Each project gets its own file here. Use the template below.
 | Project | Status | File |
 |---------|--------|------|
 | ORG EUGEN System | Active | [org-eugen-system.md](org-eugen-system.md) |
+| Spend Lens | Active | [spend-lens.md](spend-lens.md) |
+| Spend Lens — Agent Hierarchy | Active | [spend-lens-agents.md](spend-lens-agents.md) |
