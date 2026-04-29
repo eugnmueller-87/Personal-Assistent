@@ -1,0 +1,15 @@
+# Secrets
+.env
+.env.local
+credentials/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python (if any scripts added later)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
