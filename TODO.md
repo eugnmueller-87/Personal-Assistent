@@ -6,10 +6,11 @@
 
 - [ ] Set up mobile push notification system
 - [ ] Define agent architecture for workflow automation
+- [ ] Design mobilized work environment (phone / iPad / laptop)
 
 ## 🟡 Next (Queued)
 
-- [ ] Install GitHub CLI (`gh`) and authenticate
+- [x] Install GitHub CLI (`gh`) and authenticate
 - [ ] Set up n8n or Make.com for automation workflows
 - [ ] Design whiteboard agent with Miro or Excalidraw API
 
@@ -19,6 +20,9 @@
 - [ ] Build Telegram bot for task capture inbox
 - [ ] Create weekly summary agent (Claude API)
 - [ ] Set up Expo / React Native app for push notifications
+- [ ] Set up cloud dev environment (Codespaces or Replit)
+- [ ] Configure synced notes across all devices (Obsidian or Notion)
+- [ ] Set up VPN / secure remote access if needed
 
 ## ✅ Done
 

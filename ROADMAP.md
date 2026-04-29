@@ -9,18 +9,21 @@
 
 - [x] Create private GitHub repo (ORG-EUGEN)
 - [x] Set up TODO.md + ROADMAP.md
-- [ ] Install GitHub CLI and connect account
+- [x] Install GitHub CLI and connect account
 - [ ] Define all active projects in `projects/`
 - [ ] Establish weekly review habit
 
-## Phase 2 — Automation Layer (Next 4–8 weeks)
-**Goal:** Reduce manual work, get notified on what matters.
+## Phase 2 — Automation + Mobility Layer (Next 4–8 weeks)
+**Goal:** Reduce manual work, get notified on what matters, work from anywhere.
 
 - [ ] Mobile push notifications (Expo + Ntfy or Pushover)
 - [ ] Telegram bot inbox → auto-creates GitHub Issues
 - [ ] n8n / Make.com automation workflows
 - [ ] Weekly AI summary agent (Claude API)
 - [ ] Google Calendar sync
+- [ ] Mobilized work environment — device-agnostic setup (phone, iPad, laptop)
+- [ ] Cloud dev environment (GitHub Codespaces or similar)
+- [ ] Synced notes + docs across all devices
 
 ## Phase 3 — Agent Layer (2–4 months)
 **Goal:** AI agents handle routine tasks and surface insights.
@@ -45,3 +48,4 @@
 2. **Review regularly** — weekly at minimum
 3. **Automate the boring** — if you do it twice, automate it
 4. **Ship small** — working systems beat perfect plans
+5. **Work from anywhere** — no task or tool should require a specific machine
