@@ -37,6 +37,16 @@
 |-------------|------|--------|
 | Agent Hierarchy (Icarus + 4 sub-agents) | [spend-lens-agents.md](spend-lens-agents.md) | Planned |
 | Technical Architecture | [spend-lens-architecture.md](spend-lens-architecture.md) | Design phase |
+| ICARUS Telegram connection | — | Planned — Spend Lens agents report to ICARUS Telegram |
+
+## ICARUS Telegram Integration (Planned)
+
+Spend Lens Icarus (Supervisor) will connect upward to ICARUS Telegram — the central command center.
+
+- Trigger a spend analysis from Telegram: _"Run spend analysis on last month"_
+- Receive procurement alerts in Telegram: supplier risk flags, compliance issues, market signals
+- Create Spend Lens tasks from voice: _"Flag supplier X for risk review"_
+- ICARUS Telegram surfaces the most critical insights without needing to open the dashboard
 
 ## Next Priorities (from TODO.md)
 

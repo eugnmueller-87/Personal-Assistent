@@ -9,8 +9,14 @@
 ## Architecture
 
 ```
-                    ┌─────────────────────┐
-                    │       Icarus        │
+          ┌──────────────────────────────┐
+          │      ICARUS Telegram         │  ← command center, single interface
+          │   (Personal + All Agents)    │
+          └──────────────┬───────────────┘
+                         │ reports up / receives commands
+                         │
+                    ┌────▼────────────────┐
+                    │   Icarus Spend Lens │
                     │    (Supervisor)     │
                     │   (Orchestrator)    │
                     └──────────┬──────────┘
@@ -99,5 +105,5 @@
 | Orchestration | Claude Orchestrator pattern |
 | Data pipeline | Python + pandas / dbt |
 | Storage | PostgreSQL or BigQuery |
-| Delivery | Slack / email / dashboard (TBD) |
-| Scheduling | n8n or GitHub Actions |
+| Delivery | ICARUS Telegram (primary), dashboard (secondary) |
+| Scheduling | APScheduler or GitHub Actions |
