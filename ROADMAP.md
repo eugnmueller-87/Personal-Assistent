@@ -10,17 +10,18 @@
 - [x] Create private GitHub repo (ORG-EUGEN)
 - [x] Set up TODO.md + ROADMAP.md
 - [x] Install GitHub CLI and connect account
-- [ ] Define all active projects in `projects/`
-- [ ] Establish weekly review habit
+- [x] Define all active projects in `projects/`
+- [x] Establish weekly review habit (GitHub Action — auto-issue every Monday 08:00 UTC)
 
 ## Phase 2 — Automation + Mobility Layer (Next 4–8 weeks)
 **Goal:** Reduce manual work, get notified on what matters, work from anywhere.
 
-- [ ] Mobile push notifications (Expo + Ntfy or Pushover)
-- [ ] Telegram bot inbox → auto-creates GitHub Issues
+- [x] Telegram bot (@IcarusORG_bot) — live, one-way notifications
+- [x] Google Calendar API — connected (OAuth, read + write)
+- [x] Gmail API — connected (modify scope)
+- [ ] ICARUS interactive bot — deploy on Railway (calendar, email, GitHub on demand)
+- [ ] Monday automation — weekly review + calendar + email digest via Telegram
 - [ ] n8n / Make.com automation workflows
-- [ ] Weekly AI summary agent (Claude API)
-- [ ] Google Calendar sync
 - [ ] Mobilized work environment — device-agnostic setup (phone, iPad, laptop)
 - [ ] Cloud dev environment (GitHub Codespaces or similar)
 - [ ] Synced notes + docs across all devices
