@@ -13,6 +13,7 @@ Spend Lens is the main procurement intelligence project. It uses a multi-agent a
 | Sub-Project | File | Status |
 |-------------|------|--------|
 | Agent Hierarchy | [spend-lens-agents.md](spend-lens-agents.md) | Active |
+| Technical Architecture | [spend-lens-architecture.md](spend-lens-architecture.md) | Active |
 
 ## Tasks
 
