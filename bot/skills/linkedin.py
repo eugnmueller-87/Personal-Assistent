@@ -7,7 +7,9 @@ TOOLS = [
             "Draft and post a message to LinkedIn. "
             "Use when the user asks to post, share, or publish something on LinkedIn. "
             "Always show the draft to the user for approval before posting — "
-            "unless the user explicitly says 'post it' or 'publish now'."
+            "unless the user explicitly says 'post it' or 'publish now'. "
+            "Format the draft with proper line breaks between each point. "
+            "No markdown, no ---, no ** or __. Plain text only."
         ),
         "input_schema": {
             "type": "object",

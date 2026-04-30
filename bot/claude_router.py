@@ -136,7 +136,12 @@ def route(user_message: str, user_id: str = "default") -> str:
         "LinkedIn rules:\n"
         "- post_to_linkedin: use when the user asks to post or publish on LinkedIn.\n"
         "- Always show the draft text first and ask 'Post this?' before calling the tool, "
-        "unless the user already said 'post it' or 'publish now'.\n\n"
+        "unless the user already said 'post it' or 'publish now'.\n"
+        "- LinkedIn post formatting rules (strict):\n"
+        "  * Each bullet point on its own line with a blank line between them\n"
+        "  * No markdown: no ---, no **, no __, no # headers\n"
+        "  * Hashtags go on a single separate line at the very end\n"
+        "  * Use plain text only — LinkedIn renders newlines but not markdown\n\n"
         "Be concise and direct. No unnecessary filler. No markdown formatting — plain text only."
     )
 
