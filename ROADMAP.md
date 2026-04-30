@@ -51,7 +51,8 @@ ICARUS Telegram (the only interface you need)
 **Goal:** ICARUS becomes the orchestrator. Every project and agent reports here.
 
 ### Personal ops (remaining)
-- [ ] Email reply — reply or archive directly from Telegram (gmail.modify scope ready)
+- [x] Email reply — reply from Telegram with Send / Edit / Cancel approval flow
+- [x] Email search — find any email by person, subject, sent folder, or time range
 - [ ] Web search — live data tool via Brave or Tavily API (~2 hours)
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
 - [ ] Voice output (TTS) — ICARUS talks back, not just texts. OpenAI TTS or ElevenLabs (~1 day). Biggest single jump toward JARVIS feel.
@@ -69,6 +70,9 @@ ICARUS Telegram (the only interface you need)
 - [ ] Claude generates post → ICARUS previews in Telegram → confirm to publish
 - [ ] Auto-post on major milestones (configurable)
 - [ ] Post history tracked in GitHub Issues
+
+### Dev & ops
+- [ ] Staging environment — dev branch + second Railway service + @IcarusORG_dev_bot. Test all changes here before merging to main. Separate Redis prefix to avoid history bleed. Set up before Spend Lens connection work begins.
 
 ---
 
