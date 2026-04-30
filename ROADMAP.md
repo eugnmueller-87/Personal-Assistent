@@ -56,7 +56,8 @@ ICARUS Telegram (the only interface you need)
 - [x] Email body reader — full message content via get_email_body tool (format=full)
 - [x] Agentic email flow — single search call returns body when one result; no tool chaining needed
 - [x] Smart model routing — pronouns, "show me", "wrote" etc. force Sonnet for context-aware replies
-- [ ] Web search — live data tool via Brave or Tavily API (~2 hours)
+- [x] Web search — live data via Tavily API
+- [x] Google Maps — find places, directions, opening hours, ratings (Places + Directions API)
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
 - [ ] Voice output (TTS) — ICARUS talks back, not just texts. OpenAI TTS or ElevenLabs (~1 day). Biggest single jump toward JARVIS feel.
 - [ ] Smarter proactivity — "meeting in 10 min", "Stefan hasn't replied in 3 days", calendar-aware reminders
@@ -132,6 +133,8 @@ ICARUS Telegram (the only interface you need)
 | Gmail read (important only, time-filtered) | Live |
 | Gmail full body reader | Live |
 | Email reply from Telegram (Send / Edit / Cancel) | Live |
+| Web search (Tavily) | Live |
+| Google Maps — places, directions, hours, ratings | Live |
 | GitHub Issues read + create | Live |
 | Roadmap reader | Live |
 | Multi-model routing (Haiku + Sonnet) | Live |

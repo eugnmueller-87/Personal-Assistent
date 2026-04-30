@@ -39,6 +39,8 @@ ICARUS Telegram (the only interface you need)
 | Morning briefing | 06:00 Berlin, Claude-composed daily brief |
 | GitHub Issues | Read open tasks, create new ones |
 | Roadmap reader | Reads any project markdown from private repo |
+| Web search | Tavily API — live news, prices, company info, current events |
+| Google Maps | Places API + Directions API — find places, hours, ratings, travel time |
 | Multi-model routing | Haiku for simple, Sonnet 4.6 for complex (~€4/month) |
 | Persistent memory | Upstash Redis — survives restarts and redeploys |
 
@@ -47,7 +49,6 @@ ICARUS Telegram (the only interface you need)
 ## Planned
 
 ### Personal ops (remaining)
-- [ ] Web search — live data via Brave or Tavily API
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
 
 ### Agent hub (next phase)
