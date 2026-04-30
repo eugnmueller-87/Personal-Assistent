@@ -81,6 +81,11 @@ _COMPLEX_SIGNALS = [
     "what did we", "remember", "last time", "context",
     "urgent", "overview", "everything", "decision",
     "why", "how does", "what's the difference",
+    # context-referencing — always need conversation history
+    "she ", "he ", "her ", "him ", "they ", "their ",
+    "what did", "what does", "what did she", "what did he",
+    "show me", "read it", "the latest", "that one", "this one",
+    "wrote", "replied", "said",
 ]
 
 _SIMPLE_KEYWORDS = [
