@@ -41,6 +41,8 @@ ICARUS Telegram (the only interface you need)
 | Roadmap reader | Reads any project markdown from private repo |
 | Web search | Tavily API — live news, prices, company info, current events |
 | Google Maps | Places API + Directions API — find places, hours, ratings, travel time |
+| Shopping list | Add/remove/clear items conversationally — persisted in Redis |
+| Expense tracker | Log by text or receipt photo — weekly/monthly summary by store |
 | Multi-model routing | Haiku for simple, Sonnet 4.6 for complex (~€4/month) |
 | Persistent memory | Upstash Redis — survives restarts and redeploys |
 

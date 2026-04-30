@@ -58,6 +58,8 @@ ICARUS Telegram (the only interface you need)
 - [x] Smart model routing — pronouns, "show me", "wrote" etc. force Sonnet for context-aware replies
 - [x] Web search — live data via Tavily API
 - [x] Google Maps — find places, directions, opening hours, ratings (Places + Directions API)
+- [x] Shopping list — add items conversationally, remove, clear when done (Redis-backed)
+- [x] Expense tracker — log spending by text or receipt photo, monthly/weekly summary
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
 - [ ] Voice output (TTS) — ICARUS talks back, not just texts. OpenAI TTS or ElevenLabs (~1 day). Biggest single jump toward JARVIS feel.
 - [ ] Smarter proactivity — "meeting in 10 min", "Stefan hasn't replied in 3 days", calendar-aware reminders
@@ -136,6 +138,8 @@ ICARUS Telegram (the only interface you need)
 | Email reply from Telegram (Send / Edit / Cancel) | Live |
 | Web search (Tavily) | Live |
 | Google Maps — places, directions, hours, ratings | Live |
+| Shopping list — conversational, Redis-backed | Live |
+| Expense tracker — text or receipt photo, monthly summary | Live |
 | GitHub Issues read + create | Live |
 | Roadmap reader | Live |
 | Multi-model routing (Haiku + Sonnet) | Live |
