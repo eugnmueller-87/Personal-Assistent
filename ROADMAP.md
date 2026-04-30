@@ -70,7 +70,28 @@ ICARUS Telegram (the only interface you need)
 
 ---
 
-## Phase 4 — Autonomous Operations
+## Phase 4 — ICARUS as Standalone App
+**Goal:** ICARUS available outside Telegram — browser, desktop, mobile. Same backend, new interfaces. Build after all active projects are stable.
+
+### PWA (web app installable on phone)
+- [ ] FastAPI backend — `/chat`, `/voice`, `/photo` endpoints wrapping existing `claude_router.py`
+- [ ] Chat UI — single HTML page, installable to home screen via `manifest.json`
+- [ ] Voice recording via browser mic API → Whisper → same routing
+- [ ] Photo upload → same `route_image()` pipeline
+- [ ] PIN/password auth (replaces Telegram `CHAT_ID` guard)
+- [ ] Push notifications via Firebase or similar
+- [ ] Deploy to Railway alongside or instead of Telegram bot
+- [ ] **Note:** `claude_router.py`, `google_client.py`, `github_client.py` — zero changes needed
+
+### Desktop app
+- [ ] Standalone desktop client for ICARUS (Electron or Tauri wrapping the PWA)
+- [ ] Runs locally, no Railway dependency
+- [ ] Same full feature set — calendar, email, tasks, voice, image analysis
+- [ ] Windows + Mac
+
+---
+
+## Phase 5 — Autonomous Operations
 **Goal:** The system runs mostly on its own. You review, not manage.
 
 - [ ] Fully automated weekly/monthly reviews

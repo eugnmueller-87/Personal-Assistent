@@ -136,6 +136,10 @@ projects/
 4. **LinkedIn marketing agent** — Claude drafts, ICARUS previews, confirm to publish
 5. **Weekly AI summary** — Claude reviews the week, suggests priorities
 
+### Backlog (after active projects are stable)
+6. **ICARUS PWA** — FastAPI backend + installable web UI. `claude_router.py` unchanged. Add `/chat`, `/voice`, `/photo` endpoints. PIN auth. Push notifications. ~1–2 days.
+7. **ICARUS desktop app** — Electron or Tauri wrapping the PWA. Windows + Mac. Runs locally, no Railway needed.
+
 ---
 
 ## Key Gotchas for Next Session
