@@ -1,5 +1,5 @@
 import logging
-from google_client import get_unread_emails, search_emails, get_email_details, send_reply
+from google_client import get_unread_emails, search_emails, get_email_body, get_email_details, send_reply
 
 _pending_replies: dict = {}
 _edit_mode: set = set()
@@ -54,6 +54,26 @@ TOOLS = [
         },
     },
     {
+        "name": "get_email_body",
+        "description": (
+            "Fetch the full content of an email — sender name and the actual message text. "
+            "Use this whenever the user wants to READ an email: 'show me the email', "
+            "'what did she write?', 'what does it say?', 'read it'. "
+            "Always call this after search_emails when the user wants to see the message — "
+            "never say you can't show it, just call this tool."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message_id": {
+                    "type": "string",
+                    "description": "The Gmail message ID (shown as [ID:xxx] in search results).",
+                },
+            },
+            "required": ["message_id"],
+        },
+    },
+    {
         "name": "stage_email_reply",
         "description": (
             "Draft a reply to an email and stage it for user approval. "
@@ -83,6 +103,8 @@ def handle(name: str, inputs: dict, user_id: str = "default"):
         return get_unread_emails(inputs.get("max_results", 10), inputs.get("since_minutes"))
     if name == "search_emails":
         return search_emails(inputs["query"], inputs.get("max_results", 5))
+    if name == "get_email_body":
+        return get_email_body(inputs["message_id"])
     if name == "stage_email_reply":
         details = get_email_details(inputs["message_id"])
         _pending_replies[user_id] = {

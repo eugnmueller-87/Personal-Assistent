@@ -230,6 +230,41 @@ def search_emails(query: str, max_results: int = 5) -> str:
     return "\n".join(lines)
 
 
+def _extract_plain_text(payload: dict) -> str:
+    mime = payload.get("mimeType", "")
+    if mime == "text/plain":
+        data = payload.get("body", {}).get("data", "")
+        if data:
+            return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace").strip()
+    for part in payload.get("parts", []):
+        text = _extract_plain_text(part)
+        if text:
+            return text
+    if mime == "text/html":
+        data = payload.get("body", {}).get("data", "")
+        if data:
+            html = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
+            return re.sub(r"<[^>]+>", " ", html).strip()
+    return ""
+
+
+def get_email_body(message_id: str) -> str:
+    """Fetch the full plain-text body of an email by message ID."""
+    creds = get_creds()
+    service = build("gmail", "v1", credentials=creds)
+
+    detail = service.users().messages().get(
+        userId="me", id=message_id, format="full",
+    ).execute()
+
+    headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
+    sender = headers.get("From", "Unknown").split("<")[0].strip()
+    subject = headers.get("Subject", "(no subject)")
+    body = _extract_plain_text(detail["payload"]) or "(no body)"
+
+    return f"From: {sender}\nSubject: {subject}\n\n{body}"
+
+
 def get_email_details(message_id: str) -> dict:
     creds = get_creds()
     service = build("gmail", "v1", credentials=creds)
