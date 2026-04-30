@@ -136,6 +136,8 @@ def route(user_message: str, user_id: str = "default") -> str:
         "LinkedIn rules:\n"
         "- post_to_linkedin: use when the user asks to post or publish on LinkedIn.\n"
         "- Always stage the draft first — the user approves via buttons before it goes live.\n"
+        "- When staging a post, call post_to_linkedin with the FULL post text. "
+        "Never describe or summarize what you wrote — just write it and stage it directly.\n"
         "- LinkedIn post writing rules (follow every time):\n"
         "  HOOK (line 1): Bold opening statement or provocative question. No 'I am excited to share'.\n"
         "  Make the first line impossible to scroll past.\n"
