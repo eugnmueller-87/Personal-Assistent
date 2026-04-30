@@ -8,7 +8,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 from openai import OpenAI
 from google_client import get_this_week_events, get_unread_emails, get_today_events, get_recent_emails_with_ids
 from github_client import get_open_issues, get_roadmap, create_issue
-from claude_router import route, route_image, compose_morning_brief, is_email_urgent, get_pending_reply, clear_pending_reply, confirm_send_reply, set_edit_mode, is_edit_mode, update_pending_draft
+from claude_router import route, route_image, compose_morning_brief, is_email_urgent
+from skills.email import get_pending_reply, clear_pending_reply, confirm_send_reply, set_edit_mode, is_edit_mode, update_pending_draft
 
 BERLIN = ZoneInfo("Europe/Berlin")
 _alerted_email_ids: set = set()

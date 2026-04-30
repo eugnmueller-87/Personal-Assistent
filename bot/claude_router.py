@@ -5,18 +5,16 @@ import logging
 from datetime import datetime
 from collections import defaultdict
 import anthropic
-from google_client import get_this_week_events, get_unread_emails, create_calendar_event, get_email_details, send_reply, search_emails
-from github_client import get_open_issues, create_issue, get_roadmap
+from skills import get_all_tools, call_tool
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 _history = defaultdict(list)
 MAX_HISTORY = 10
-_pending_replies: dict = {}
-_edit_mode: set = set()
 
 # --- Persistent memory via Upstash Redis ---
 _redis = None
+
 
 def _get_redis():
     global _redis
@@ -30,6 +28,7 @@ def _get_redis():
             except Exception as e:
                 logging.warning(f"[ICARUS] Redis init failed: {e}")
     return _redis
+
 
 def _clean_for_storage(history: list) -> list:
     clean = []
@@ -47,6 +46,7 @@ def _clean_for_storage(history: list) -> list:
                 clean.append({"role": "assistant", "content": text})
     return clean[-MAX_HISTORY * 2:]
 
+
 def _load_history(user_id: str):
     if _history[user_id]:
         return
@@ -60,6 +60,7 @@ def _load_history(user_id: str):
     except Exception as e:
         logging.warning(f"[ICARUS] Redis load failed: {e}")
 
+
 def _save_history(user_id: str):
     r = _get_redis()
     if not r:
@@ -69,10 +70,10 @@ def _save_history(user_id: str):
     except Exception as e:
         logging.warning(f"[ICARUS] Redis save failed: {e}")
 
+
 HAIKU = "claude-haiku-4-5-20251001"
 SONNET = "claude-sonnet-4-6"
 
-# Signals that the message needs deeper reasoning — route to Sonnet
 _COMPLEX_SIGNALS = [
     " and ", " also ", " plus ", " both ", " with ",
     "explain", "analyz", "summari", "compar", "priorit",
@@ -82,7 +83,6 @@ _COMPLEX_SIGNALS = [
     "why", "how does", "what's the difference",
 ]
 
-# Keywords that indicate a single-intent data fetch — safe for Haiku
 _SIMPLE_KEYWORDS = [
     "calendar", "emails", "email", "inbox", "issues",
     "tasks", "roadmap", "schedule", "events",
@@ -92,227 +92,15 @@ _SIMPLE_KEYWORDS = [
 def _pick_model(message: str) -> str:
     msg = message.lower()
     words = msg.split()
-
-    # Complex reasoning signals → Sonnet
     if any(signal in msg for signal in _COMPLEX_SIGNALS):
         return SONNET
-
-    # Long messages need nuanced handling → Sonnet
     if len(words) > 12:
         return SONNET
-
-    # Very short messages with no complexity → Haiku
     if len(words) <= 5:
         return HAIKU
-
-    # Single-intent data requests → Haiku
     if any(kw in msg for kw in _SIMPLE_KEYWORDS):
         return HAIKU
-
     return SONNET
-
-
-TOOLS = [
-    {
-        "name": "get_calendar",
-        "description": "Get the user's calendar events for the next 7 days.",
-        "input_schema": {"type": "object", "properties": {}, "required": []},
-    },
-    {
-        "name": "get_emails",
-        "description": (
-            "Quick inbox check — returns unread important emails from the last 3 days. "
-            "Use this when the user wants a general update: 'any emails?', 'check my inbox', 'what's new'. "
-            "Do NOT use this to find a specific email by person or subject — use search_emails for that."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "max_results": {
-                    "type": "integer",
-                    "description": "How many emails to fetch. Default 10.",
-                },
-                "since_minutes": {
-                    "type": "integer",
-                    "description": "Only fetch emails from the last N minutes. Use 10 for 'last 10 minutes', 60 for 'last hour', 1440 for 'today'.",
-                },
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "get_issues",
-        "description": "Get open GitHub issues from the user's repo.",
-        "input_schema": {"type": "object", "properties": {}, "required": []},
-    },
-    {
-        "name": "get_roadmap",
-        "description": "Get the roadmap for a project.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "project": {
-                    "type": "string",
-                    "description": "Project name. Options: org-eugen, spendlens, icarus, agents.",
-                }
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "create_issue",
-        "description": "Create a new task or GitHub issue.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string", "description": "Short title of the task."},
-                "body": {"type": "string", "description": "Optional description or details."},
-            },
-            "required": ["title"],
-        },
-    },
-    {
-        "name": "search_emails",
-        "description": (
-            "Search for a specific email by person, subject, or folder. "
-            "Use this when the user names someone ('email from Petra', 'my last email to Stefan'), "
-            "mentions a subject, or asks for sent mail or older emails. "
-            "Searches read AND unread, any folder. "
-            "Supports Gmail syntax: 'from:name', 'to:name', 'subject:text', 'in:sent', "
-            "'in:anywhere', 'newer_than:30d'. "
-            "Never use get_emails for this — get_emails only sees unread/important."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Gmail search query, e.g. 'from:petra in:anywhere newer_than:30d'",
-                },
-                "max_results": {
-                    "type": "integer",
-                    "description": "Max emails to return. Default 5.",
-                },
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "stage_email_reply",
-        "description": (
-            "Draft a reply to an email and stage it for user approval. "
-            "The reply is NOT sent until the user confirms. "
-            "Always use this when the user wants to reply to an email."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "message_id": {
-                    "type": "string",
-                    "description": "The Gmail message ID from the email list (shown as [ID:xxx]).",
-                },
-                "draft_body": {
-                    "type": "string",
-                    "description": "The reply text. Plain text, no markdown.",
-                },
-            },
-            "required": ["message_id", "draft_body"],
-        },
-    },
-    {
-        "name": "create_calendar_event",
-        "description": "Create an event on the user's Google Calendar.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "summary": {"type": "string", "description": "Event title."},
-                "date": {"type": "string", "description": "Date in YYYY-MM-DD format."},
-                "start_time": {"type": "string", "description": "Start time in HH:MM (24h). Omit for all-day events."},
-                "end_time": {"type": "string", "description": "End time in HH:MM (24h). Defaults to 1 hour after start."},
-            },
-            "required": ["summary", "date"],
-        },
-    },
-]
-
-
-def _call_tool(name: str, inputs: dict, user_id: str = "default") -> str:
-    try:
-        if name == "get_calendar":
-            return get_this_week_events()
-        if name == "get_emails":
-            return get_unread_emails(inputs.get("max_results", 10), inputs.get("since_minutes"))
-        if name == "get_issues":
-            return get_open_issues()
-        if name == "get_roadmap":
-            return get_roadmap(inputs.get("project", "org-eugen"))
-        if name == "create_issue":
-            return create_issue(inputs["title"], inputs.get("body", ""))
-        if name == "create_calendar_event":
-            return create_calendar_event(
-                inputs["summary"],
-                inputs["date"],
-                inputs.get("start_time"),
-                inputs.get("end_time"),
-            )
-        if name == "search_emails":
-            return search_emails(inputs["query"], inputs.get("max_results", 5))
-        if name == "stage_email_reply":
-            details = get_email_details(inputs["message_id"])
-            _pending_replies[user_id] = {
-                "thread_id": details["thread_id"],
-                "to": details["to"],
-                "subject": details["subject"],
-                "in_reply_to": details["message_id_header"],
-                "references": details["references"],
-                "draft": inputs["draft_body"],
-            }
-            return f"Reply to {details['to']} staged for approval."
-        return "Unknown tool."
-    except Exception as e:
-        logging.error(f"[ICARUS] tool '{name}' failed: {e}")
-        return f"Tool unavailable ({name}): {e}"
-
-
-def get_pending_reply(user_id: str) -> dict | None:
-    return _pending_replies.get(user_id)
-
-
-def clear_pending_reply(user_id: str):
-    _pending_replies.pop(user_id, None)
-    _edit_mode.discard(user_id)
-
-
-def set_edit_mode(user_id: str):
-    _edit_mode.add(user_id)
-
-
-def is_edit_mode(user_id: str) -> bool:
-    return user_id in _edit_mode
-
-
-def update_pending_draft(user_id: str, new_draft: str):
-    if user_id in _pending_replies:
-        _pending_replies[user_id]["draft"] = new_draft
-    _edit_mode.discard(user_id)
-
-
-def confirm_send_reply(user_id: str) -> str:
-    pending = _pending_replies.pop(user_id, None)
-    if not pending:
-        return "No pending reply found."
-    try:
-        return send_reply(
-            pending["thread_id"],
-            pending["to"],
-            pending["subject"],
-            pending["in_reply_to"],
-            pending["references"],
-            pending["draft"],
-        )
-    except Exception as e:
-        logging.error(f"[ICARUS] send_reply failed: {e}")
-        return f"Failed to send: {e}"
 
 
 def route(user_message: str, user_id: str = "default") -> str:
@@ -333,6 +121,8 @@ def route(user_message: str, user_id: str = "default") -> str:
         "Be concise and direct. No unnecessary filler. No markdown formatting — plain text only."
     )
 
+    tools = get_all_tools()
+
     _load_history(user_id)
     history = _history[user_id]
     history.append({"role": "user", "content": user_message})
@@ -341,7 +131,7 @@ def route(user_message: str, user_id: str = "default") -> str:
         model=model,
         max_tokens=1024,
         system=system,
-        tools=TOOLS,
+        tools=tools,
         messages=history,
     )
 
@@ -351,7 +141,7 @@ def route(user_message: str, user_id: str = "default") -> str:
 
         for block in assistant_content:
             if block.type == "tool_use":
-                result = _call_tool(block.name, block.input, user_id)
+                result = call_tool(block.name, block.input, user_id)
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
@@ -365,7 +155,7 @@ def route(user_message: str, user_id: str = "default") -> str:
             model=model,
             max_tokens=1024,
             system=system,
-            tools=TOOLS,
+            tools=tools,
             messages=history,
         )
 
@@ -384,7 +174,7 @@ def route(user_message: str, user_id: str = "default") -> str:
 
 
 def compose_morning_brief(cal: str, mail: str, issues: str) -> str:
-    from datetime import datetime
+    now = datetime.now()
     from zoneinfo import ZoneInfo
     now = datetime.now(ZoneInfo("Europe/Berlin"))
 
