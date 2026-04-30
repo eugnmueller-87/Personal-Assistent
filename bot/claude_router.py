@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from collections import defaultdict
 import anthropic
-from google_client import get_this_week_events, get_unread_emails, create_calendar_event, get_email_details, send_reply
+from google_client import get_this_week_events, get_unread_emails, create_calendar_event, get_email_details, send_reply, search_emails
 from github_client import get_open_issues, create_issue, get_roadmap
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
@@ -168,6 +168,30 @@ TOOLS = [
         },
     },
     {
+        "name": "search_emails",
+        "description": (
+            "Search emails using a Gmail query. Use this when the user asks for a specific email "
+            "by sender name, recipient, subject, or when get_emails returns nothing useful. "
+            "Supports Gmail syntax: 'from:name', 'to:name', 'subject:text', 'in:sent', "
+            "'in:anywhere', 'newer_than:7d', 'older_than:1d'. "
+            "Does NOT filter by unread or important — finds any email."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Gmail search query, e.g. 'from:petra in:anywhere newer_than:30d'",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Max emails to return. Default 5.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
         "name": "stage_email_reply",
         "description": (
             "Draft a reply to an email and stage it for user approval. "
@@ -225,6 +249,8 @@ def _call_tool(name: str, inputs: dict, user_id: str = "default") -> str:
                 inputs.get("start_time"),
                 inputs.get("end_time"),
             )
+        if name == "search_emails":
+            return search_emails(inputs["query"], inputs.get("max_results", 5))
         if name == "stage_email_reply":
             details = get_email_details(inputs["message_id"])
             _pending_replies[user_id] = {
