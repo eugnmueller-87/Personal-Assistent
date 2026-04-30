@@ -1,52 +1,60 @@
-from urllib.parse import quote_plus
+from maps_client import find_place, get_directions, maps_link, directions_link
 
 TOOLS = [
     {
-        "name": "get_maps_link",
+        "name": "find_place",
         "description": (
-            "Generate a Google Maps link for any location or directions request. "
-            "Use when the user asks where something is, wants to find a place, "
-            "or asks how to get from A to B. Always returns a clickable link."
+            "Find a place and get its address, rating, phone number, and opening hours. "
+            "Use when the user asks where something is, wants to find a restaurant/shop/office, "
+            "or asks if a place is open. Always returns a clickable Google Maps link."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Location to search, e.g. 'Parloa office Berlin' or 'sushi near Schwabing Munich'.",
+                    "description": "Place to search, e.g. 'Parloa office Berlin' or 'sushi near Schwabing Munich'.",
                 },
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_directions",
+        "description": (
+            "Get travel time and route between two locations. "
+            "Use when the user asks how to get from A to B, how long it takes, or asks for directions. "
+            "Always returns a clickable Google Maps link."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
                 "origin": {
                     "type": "string",
-                    "description": "Starting point for directions. Omit for location searches.",
+                    "description": "Starting point, e.g. 'Munich Hauptbahnhof'.",
                 },
                 "destination": {
                     "type": "string",
-                    "description": "End point for directions. Omit for location searches.",
+                    "description": "End point, e.g. 'Berlin Hauptbahnhof'.",
+                },
+                "mode": {
+                    "type": "string",
+                    "description": "Travel mode: driving, transit, walking, bicycling. Default: transit.",
                 },
             },
-            "required": [],
+            "required": ["origin", "destination"],
         },
     },
 ]
 
 
 def handle(name: str, inputs: dict, user_id: str = "default"):
-    if name == "get_maps_link":
-        origin = inputs.get("origin", "").strip()
-        destination = inputs.get("destination", "").strip()
-        query = inputs.get("query", "").strip()
-
-        if origin and destination:
-            url = (
-                f"https://www.google.com/maps/dir/?api=1"
-                f"&origin={quote_plus(origin)}"
-                f"&destination={quote_plus(destination)}"
-            )
-            return f"Directions from {origin} to {destination}:\n{url}"
-
-        if query:
-            url = f"https://www.google.com/maps/search/?api=1&query={quote_plus(query)}"
-            return f"{query}:\n{url}"
-
-        return "Please provide a location or origin/destination."
+    if name == "find_place":
+        return find_place(inputs["query"])
+    if name == "get_directions":
+        return get_directions(
+            inputs["origin"],
+            inputs["destination"],
+            inputs.get("mode", "transit"),
+        )
     return None
