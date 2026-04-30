@@ -31,7 +31,10 @@ ICARUS Telegram (the only interface you need)
 | Image / document analysis | Claude multimodal — invoices, contracts, whiteboards |
 | Google Calendar read | This week's events |
 | Google Calendar write | Create events from voice or text |
-| Gmail | Important-only, last 3 days default, time-based queries |
+| Gmail read | Important-only, last 3 days default, time-based queries |
+| Gmail full body | get_email_body — fetches format=full, extracts plain text |
+| Gmail search | search_emails — returns body directly when single result found |
+| Email reply | Send / Edit / Cancel approval flow from Telegram |
 | Proactive email alerts | Polls every 15 min, Haiku judges urgency, no spam |
 | Morning briefing | 06:00 Berlin, Claude-composed daily brief |
 | GitHub Issues | Read open tasks, create new ones |
@@ -44,7 +47,6 @@ ICARUS Telegram (the only interface you need)
 ## Planned
 
 ### Personal ops (remaining)
-- [ ] Email reply — reply or archive directly from Telegram
 - [ ] Web search — live data via Brave or Tavily API
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
 
