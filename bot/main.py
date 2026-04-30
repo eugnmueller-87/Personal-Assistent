@@ -10,6 +10,7 @@ from google_client import get_this_week_events, get_unread_emails, get_today_eve
 from github_client import get_open_issues, get_roadmap, create_issue
 from claude_router import route, route_image, compose_morning_brief, is_email_urgent
 from skills.email import get_pending_reply, clear_pending_reply, confirm_send_reply, set_edit_mode, is_edit_mode, update_pending_draft
+from linkedin_client import get_pending_post, clear_pending_post, confirm_post, update_pending_post
 
 BERLIN = ZoneInfo("Europe/Berlin")
 _alerted_email_ids: set = set()
@@ -188,6 +189,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("No pending reply found.")
         return
 
+    if get_pending_post(user_id):
+        update_pending_post(user_id, text)
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("Post ✅", callback_data="linkedin_post"),
+            InlineKeyboardButton("✏️ Edit", callback_data="linkedin_edit"),
+            InlineKeyboardButton("Cancel ❌", callback_data="linkedin_cancel"),
+        ]])
+        await update.message.reply_text(f"Updated draft:\n\n{text}", reply_markup=keyboard)
+        return
+
     await update.message.reply_text("On it...")
     try:
         result = route(text, user_id=user_id)
@@ -197,14 +208,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _reply_with_approval(update: Update, user_id: str, text: str):
-    pending = get_pending_reply(user_id)
-    if pending:
+    pending_email = get_pending_reply(user_id)
+    pending_linkedin = get_pending_post(user_id)
+
+    if pending_email:
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton("Send ✅", callback_data="reply_send"),
             InlineKeyboardButton("✏️ Edit", callback_data="reply_edit"),
             InlineKeyboardButton("Cancel ❌", callback_data="reply_cancel"),
         ]])
         await update.message.reply_text(text, reply_markup=keyboard)
+    elif pending_linkedin or (isinstance(text, str) and text.startswith("LINKEDIN_STAGED:")):
+        post_text = text.replace("LINKEDIN_STAGED:", "").strip() if text.startswith("LINKEDIN_STAGED:") else text
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("Post ✅", callback_data="linkedin_post"),
+            InlineKeyboardButton("✏️ Edit", callback_data="linkedin_edit"),
+            InlineKeyboardButton("Cancel ❌", callback_data="linkedin_cancel"),
+        ]])
+        await update.message.reply_text(f"Draft:\n\n{post_text}", reply_markup=keyboard)
     else:
         await update.message.reply_text(text)
 
@@ -229,6 +250,14 @@ async def handle_reply_callback(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data == "reply_cancel":
         clear_pending_reply(user_id)
         await query.message.reply_text("Reply cancelled.")
+    elif query.data == "linkedin_post":
+        result = confirm_post(user_id)
+        await query.message.reply_text(f"✅ {result}")
+    elif query.data == "linkedin_edit":
+        await query.message.reply_text("Send me the updated post text:")
+    elif query.data == "linkedin_cancel":
+        clear_pending_post(user_id)
+        await query.message.reply_text("Post cancelled.")
 
 
 async def morning_briefing(context):

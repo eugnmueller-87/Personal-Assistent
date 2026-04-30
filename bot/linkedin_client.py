@@ -2,6 +2,7 @@ import os
 import requests
 
 _ACCESS_TOKEN = None
+_pending_posts: dict = {}
 
 
 def _get_token() -> str:
@@ -21,10 +22,9 @@ def _get_user_id() -> str:
     return resp.json()["sub"]
 
 
-def post_to_linkedin(text: str) -> str:
+def _publish(text: str) -> str:
     token = _get_token()
     author = f"urn:li:person:{_get_user_id()}"
-
     payload = {
         "author": author,
         "lifecycleState": "PUBLISHED",
@@ -36,7 +36,6 @@ def post_to_linkedin(text: str) -> str:
         },
         "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
     }
-
     resp = requests.post(
         "https://api.linkedin.com/v2/ugcPosts",
         headers={
@@ -48,5 +47,28 @@ def post_to_linkedin(text: str) -> str:
         timeout=10,
     )
     resp.raise_for_status()
-    post_id = resp.headers.get("x-restli-id", "unknown")
-    return f"Posted successfully. Post ID: {post_id}"
+    return f"Posted. Post ID: {resp.headers.get('x-restli-id', 'unknown')}"
+
+
+def stage_linkedin_post(user_id: str, text: str) -> str:
+    _pending_posts[user_id] = text
+    return f"LINKEDIN_STAGED:{text}"
+
+
+def get_pending_post(user_id: str) -> str | None:
+    return _pending_posts.get(user_id)
+
+
+def clear_pending_post(user_id: str):
+    _pending_posts.pop(user_id, None)
+
+
+def confirm_post(user_id: str) -> str:
+    text = _pending_posts.pop(user_id, None)
+    if not text:
+        return "No pending post found."
+    return _publish(text)
+
+
+def update_pending_post(user_id: str, text: str):
+    _pending_posts[user_id] = text
