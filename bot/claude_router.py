@@ -120,6 +120,10 @@ def route(user_message: str, user_id: str = "default") -> str:
         "create new tasks, and search the live web. Use them whenever the request involves real data.\n\n"
         "Web search rule: use web_search for anything requiring live or current information — "
         "news, weather, prices, exchange rates, company info, people. Never make up current data.\n\n"
+        "Shopping rules:\n"
+        "- add_to_shopping_list: whenever the user mentions items to buy or says 'we need X'.\n"
+        "- log_expense: whenever the user mentions spending money ('spent €X at Y') or sends a receipt — "
+        "extract amount, store, and items from the receipt and call log_expense immediately.\n\n"
         "Email tool rules — follow strictly:\n"
         "- get_emails: general inbox check ('any emails?', 'what's new'). Unread + important only.\n"
         "- search_emails: whenever the user mentions a person, subject, sent mail, or older email.\n"
@@ -239,30 +243,56 @@ def route_image(image_bytes: bytes, caption: str = "", user_id: str = "default")
     system = (
         f"You are ICARUS, a sharp personal assistant. "
         f"Today is {now.strftime('%A, %d %B %Y')} and the time is {now.strftime('%H:%M')}.\n\n"
+        "If this image is a shopping receipt or bill, extract the total amount, store name, "
+        "and key items, then call log_expense to save it. Always do this automatically — "
+        "do not ask the user to confirm before logging.\n\n"
         "Be concise and direct. No unnecessary filler. No markdown formatting — plain text only."
     )
 
     image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+    tools = get_all_tools()
+    messages = [{
+        "role": "user",
+        "content": [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": image_data,
+                },
+            },
+            {"type": "text", "text": prompt},
+        ],
+    }]
 
     response = client.messages.create(
         model=SONNET,
         max_tokens=1024,
         system=system,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/jpeg",
-                        "data": image_data,
-                    },
-                },
-                {"type": "text", "text": prompt},
-            ],
-        }],
+        tools=tools,
+        messages=messages,
     )
+
+    while response.stop_reason == "tool_use":
+        tool_results = []
+        for block in response.content:
+            if block.type == "tool_use":
+                result = call_tool(block.name, block.input, user_id)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result,
+                })
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({"role": "user", "content": tool_results})
+        response = client.messages.create(
+            model=SONNET,
+            max_tokens=1024,
+            system=system,
+            tools=tools,
+            messages=messages,
+        )
 
     return next(
         (block.text for block in response.content if hasattr(block, "text")),

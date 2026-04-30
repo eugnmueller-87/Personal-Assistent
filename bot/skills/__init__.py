@@ -1,7 +1,7 @@
 import logging
-from . import calendar, email, github, search, maps
+from . import calendar, email, github, search, maps, shopping
 
-_SKILLS = [calendar, email, github, search, maps]
+_SKILLS = [calendar, email, github, search, maps, shopping]
 
 
 def get_all_tools() -> list:
