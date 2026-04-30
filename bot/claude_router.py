@@ -120,7 +120,11 @@ TOOLS = [
     },
     {
         "name": "get_emails",
-        "description": "Get unread important emails from the user's Gmail inbox. Defaults to last 3 days.",
+        "description": (
+            "Quick inbox check — returns unread important emails from the last 3 days. "
+            "Use this when the user wants a general update: 'any emails?', 'check my inbox', 'what's new'. "
+            "Do NOT use this to find a specific email by person or subject — use search_emails for that."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -170,11 +174,13 @@ TOOLS = [
     {
         "name": "search_emails",
         "description": (
-            "Search emails using a Gmail query. Use this when the user asks for a specific email "
-            "by sender name, recipient, subject, or when get_emails returns nothing useful. "
+            "Search for a specific email by person, subject, or folder. "
+            "Use this when the user names someone ('email from Petra', 'my last email to Stefan'), "
+            "mentions a subject, or asks for sent mail or older emails. "
+            "Searches read AND unread, any folder. "
             "Supports Gmail syntax: 'from:name', 'to:name', 'subject:text', 'in:sent', "
-            "'in:anywhere', 'newer_than:7d', 'older_than:1d'. "
-            "Does NOT filter by unread or important — finds any email."
+            "'in:anywhere', 'newer_than:30d'. "
+            "Never use get_emails for this — get_emails only sees unread/important."
         ),
         "input_schema": {
             "type": "object",
@@ -319,6 +325,9 @@ def route(user_message: str, user_id: str = "default") -> str:
         f"Today is {now.strftime('%A, %d %B %Y')} and the time is {now.strftime('%H:%M')}.\n\n"
         "You have tools to read the user's calendar, emails, GitHub issues, and roadmaps, "
         "and to create new tasks. Use them whenever the request involves real data.\n\n"
+        "Email tool rules — follow strictly:\n"
+        "- get_emails: only for a general inbox check ('any emails?', 'what's new'). Unread + important only.\n"
+        "- search_emails: whenever the user mentions a person, subject, sent mail, or older email. Always.\n\n"
         "If a request is ambiguous or missing details, ask one short clarifying question "
         "instead of guessing or doing nothing.\n\n"
         "Be concise and direct. No unnecessary filler. No markdown formatting — plain text only."
