@@ -133,6 +133,10 @@ def route(user_message: str, user_id: str = "default") -> str:
         "When the user says 'show me the email' or similar and context already contains a message ID "
         "or a named sender, call get_email_body directly — do not ask for clarification.\n\n"
         "Only ask a clarifying question when you have no context at all to go on.\n\n"
+        "LinkedIn rules:\n"
+        "- post_to_linkedin: use when the user asks to post or publish on LinkedIn.\n"
+        "- Always show the draft text first and ask 'Post this?' before calling the tool, "
+        "unless the user already said 'post it' or 'publish now'.\n\n"
         "Be concise and direct. No unnecessary filler. No markdown formatting — plain text only."
     )
 
