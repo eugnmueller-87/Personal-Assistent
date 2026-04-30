@@ -202,7 +202,7 @@ def get_unread_emails(max_results=10, since_minutes=None):
 
 
 def search_emails(query: str, max_results: int = 5) -> str:
-    """Search emails with a raw Gmail query — no unread/important filter applied."""
+    """Search emails. Returns full body when result is a single email, metadata list otherwise."""
     creds = get_creds()
     service = build("gmail", "v1", credentials=creds)
 
@@ -214,6 +214,9 @@ def search_emails(query: str, max_results: int = 5) -> str:
     if not messages:
         return f"No emails found for query: {query}"
 
+    if len(messages) == 1:
+        return get_email_body(messages[0]["id"])
+
     lines = []
     for msg in messages:
         detail = service.users().messages().get(
@@ -222,10 +225,9 @@ def search_emails(query: str, max_results: int = 5) -> str:
         ).execute()
         headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
         sender = headers.get("From", "").split("<")[0].strip()
-        to = headers.get("To", "").split("<")[0].strip()
         subject = headers.get("Subject", "(no subject)")
         date = headers.get("Date", "")[:16]
-        lines.append(f"• [ID:{msg['id']}] {date} | From: {sender} | To: {to} | {subject}")
+        lines.append(f"• [ID:{msg['id']}] {date} | From: {sender} | {subject}")
 
     return "\n".join(lines)
 
