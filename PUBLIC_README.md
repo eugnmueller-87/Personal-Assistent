@@ -1,62 +1,90 @@
-# Personal Assistant — AI-powered Telegram Bot
+# ICARUS — Personal AI Assistant
 
-A self-hosted personal assistant that lives in Telegram. Ask it about your calendar, emails, and tasks. Get proactive briefings every morning. Powered by Claude AI, Google APIs, and GitHub — deployed on Railway for free.
+A self-hosted personal assistant that lives in Telegram. Powered by Claude AI. Reads and replies to emails, manages your calendar, searches the web, finds places, handles tasks — all from a single chat. Deployed on Railway, always on.
 
 ---
 
 ## What It Does
 
-### Live — Notifications
-- **Monday briefing** — weekly review issue created automatically, pushed to Telegram with this week's calendar and email digest
-- **Daily morning brief** — unread emails, today's calendar, open tasks (optional)
+### Live Capabilities
 
-### Live — Integrations
-- **Google Calendar** — read and query your events
-- **Gmail** — read, summarize, and manage emails (modify scope)
-- **GitHub** — read issues, todos, and roadmaps from your repo
+| Capability | Detail |
+|---|---|
+| Natural language — text | Claude Sonnet 4.6 tool-use agent |
+| Natural language — voice | OpenAI Whisper transcription |
+| Image / document analysis | Claude multimodal — invoices, contracts, whiteboards |
+| Google Calendar read | This week's events |
+| Google Calendar write | Create events from voice or text |
+| Gmail read | Important-only, last 3 days, time-based queries |
+| Gmail search | Find any email by person, subject, folder, or date |
+| Gmail full body | Read the actual message content |
+| Email reply | Draft + Send / Edit / Cancel approval flow |
+| Proactive email alerts | Polls every 15 min, AI urgency filter, no spam |
+| Morning briefing | 06:00 Berlin — calendar + emails + tasks |
+| Web search | Tavily API — live news, prices, company info |
+| Google Maps | Places, directions, opening hours, ratings |
+| GitHub Issues | Read open tasks, create new ones |
+| Roadmap reader | Read any project markdown from repo |
+| Multi-model routing | Haiku for simple, Sonnet for complex (~€4/month) |
+| Persistent memory | Upstash Redis — survives restarts |
 
-### Interactive Commands (via Telegram)
+### Commands
 | Command | What it does |
 |---------|-------------|
-| `/calendar` | Show this week's events |
-| `/emails` | Unread email summary — count, senders, subjects |
-| `/issues` | Open GitHub issues |
-| `/summary` | Everything combined in one message |
-| `/roadmap [project]` | Status of any active project roadmap |
+| `/calendar` | This week's events |
+| `/emails` | Unread important emails |
+| `/issues` | Open GitHub tasks |
+| `/summary` | Calendar + emails + tasks combined |
+| `/roadmap [project]` | Any project roadmap |
+| `/task [text]` | Create a GitHub issue |
 
-### Natural Language (Claude-powered)
-Ask anything in plain text:
-- _"Any emails from suppliers today?"_
-- _"What's on my calendar Thursday?"_
-- _"What's next on the roadmap?"_
-- _"Add task: call Stefan"_ → creates a GitHub issue
-
----
-
-## Planned Features
-
-- [ ] Voice message support — transcribe and process
-- [ ] Proactive alerts — notify when flagged emails arrive
-- [ ] Task creation from Telegram → syncs to GitHub Issues
-- [ ] Weekly AI summary — Claude summarizes the week and suggests priorities
-- [ ] Whiteboard integration (Excalidraw / Miro)
-- [ ] Multi-project roadmap tracking
-- [ ] n8n / Make.com workflow triggers
+### Natural Language Examples
+- _"Show me the email from Eve"_ → reads full body
+- _"Reply to Stefan: confirmed for Thursday"_ → stages reply for approval
+- _"What's the weather in Munich tomorrow?"_ → live web search
+- _"Find a sushi place near Marienplatz"_ → Places API + Maps link
+- _"How long from Munich to Berlin by train?"_ → Directions API
+- _"Add task: prepare Q2 review"_ → creates GitHub issue
 
 ---
 
 ## Tech Stack
 
-| Layer | Tool |
-|-------|------|
-| Bot framework | python-telegram-bot |
-| AI / NLP | Claude API (Anthropic) — Haiku for speed |
-| Calendar | Google Calendar API |
-| Email | Gmail API |
-| Task tracking | GitHub Issues + API |
-| Hosting | Railway (free tier, always-on) |
-| Auth | Google OAuth 2.0 (Desktop app flow) |
-| Scheduling | GitHub Actions (cron) |
+| Component | Tool |
+|---|---|
+| Bot framework | python-telegram-bot[job-queue] |
+| AI — complex | Claude Sonnet 4.6 (tool-use agent) |
+| AI — simple | Claude Haiku 4.5 (fast routing) |
+| AI — images | Claude Sonnet 4.6 (multimodal) |
+| Voice | OpenAI Whisper API |
+| Calendar | Google Calendar API (read + write) |
+| Email | Gmail API (modify scope) |
+| Web search | Tavily API |
+| Maps | Google Places API + Directions API |
+| Tasks | GitHub Issues API |
+| Memory | Upstash Redis (free tier) |
+| Hosting | Railway (free tier) |
+| Scheduling | APScheduler via job_queue |
+
+---
+
+## Environment Variables
+
+```env
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+GITHUB_TOKEN=
+GITHUB_REPO=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+UPSTASH_REDIS_URL=
+UPSTASH_REDIS_TOKEN=
+TAVILY_API_KEY=
+GOOGLE_MAPS_API_KEY=
+```
 
 ---
 
@@ -66,76 +94,19 @@ Ask anything in plain text:
 Telegram (you)
      │
      ▼
-python-telegram-bot (Railway)
+python-telegram-bot (Railway, always-on)
      │
-     ├── /calendar → Google Calendar API
-     ├── /emails   → Gmail API
-     ├── /issues   → GitHub API
-     ├── /summary  → all three combined
-     └── free text → Claude API → routes to right function
-
-GitHub Actions (cron)
-     └── Monday 08:00 UTC
-           ├── Create weekly review issue
-           ├── Fetch calendar events
-           ├── Fetch email digest
-           └── Push to Telegram
+     ├── voice  → Whisper → text → claude_router
+     ├── photo  → Claude Sonnet (multimodal)
+     └── text   → _pick_model() → Haiku or Sonnet
+                       └── tool-use agent loop
+                             ├── get_calendar / create_calendar_event
+                             ├── get_emails / search_emails / get_email_body
+                             ├── stage_email_reply → send_reply
+                             ├── get_issues / create_issue / get_roadmap
+                             ├── web_search (Tavily)
+                             └── find_place / get_directions (Google Maps)
 ```
-
----
-
-## Setup
-
-### 1. Clone and configure
-```bash
-git clone https://github.com/your-username/personal-assistant
-cd personal-assistant
-```
-
-### 2. Create a Telegram bot
-- Message `@BotFather` → `/newbot`
-- Save the bot token
-
-### 3. Google API credentials
-- Go to [Google Cloud Console](https://console.cloud.google.com)
-- Create a project → enable **Google Calendar API** and **Gmail API**
-- Create **OAuth client ID** → type: **Desktop app**
-- Download `credentials.json`
-- Run `python workflows/gcal_auth.py` to authenticate
-- Scopes required:
-  - `https://www.googleapis.com/auth/calendar`
-  - `https://www.googleapis.com/auth/gmail.modify`
-
-### 4. Environment variables
-```env
-TELEGRAM_BOT_TOKEN=your_token
-TELEGRAM_CHAT_ID=your_chat_id
-ANTHROPIC_API_KEY=your_key
-GITHUB_TOKEN=your_token
-GITHUB_REPO=your-username/your-repo
-GOOGLE_CLIENT_ID=from_credentials.json
-GOOGLE_CLIENT_SECRET=from_credentials.json
-GOOGLE_REFRESH_TOKEN=from_token.json
-```
-
-### 5. Deploy to Railway
-- Connect your GitHub repo to [Railway](https://railway.app)
-- Add all environment variables
-- Deploy — bot stays online 24/7
-
----
-
-## Project Status
-
-| Feature | Status |
-|---------|--------|
-| Telegram bot | Live |
-| Google Calendar API | Live |
-| Gmail API | Live |
-| Monday GitHub Action | Live |
-| Interactive bot (Railway) | In progress |
-| Natural language routing | Planned |
-| Voice messages | Planned |
 
 ---
 

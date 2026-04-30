@@ -26,20 +26,22 @@ ORG-EUGEN/
 ## Roadmaps
 | Project | Roadmap | Status |
 |---------|---------|--------|
-| ORG EUGEN | [ROADMAP.md](ROADMAP.md) | Phase 1 complete, Phase 2 in progress |
+| ORG EUGEN | [ROADMAP.md](ROADMAP.md) | Phase 2 complete, Phase 3 in progress |
 | SpendLens | [projects/spend-lens.md](projects/spend-lens.md) | Phase 0 complete, Phase A next |
 | SpendLens Agents | [projects/spend-lens-agents.md](projects/spend-lens-agents.md) | Design phase |
-| ICARUS Bot | [projects/icarus-bot.md](projects/icarus-bot.md) | Phase A next — Railway deploy |
+| ICARUS Bot | [projects/icarus-bot.md](projects/icarus-bot.md) | Live — Phase 3 personal ops mostly done |
 
 ## Stack
 | Layer | Tool | Status |
 |-------|------|--------|
 | Task tracking | GitHub Issues + TODO.md | Live |
 | Weekly review | GitHub Actions (Monday 08:00 UTC) | Live |
-| AI assistant | Claude API | Live |
-| Google Calendar | Google Calendar API (OAuth) | Live |
-| Gmail | Gmail API (modify scope) | Live |
-| Telegram bot | @IcarusORG_bot | Live — one-way notifications |
-| Interactive bot | ICARUS on Railway | Planned |
+| ICARUS — interactive AI assistant | @IcarusORG_bot on Railway | Live |
+| Natural language + voice + images | Claude Sonnet 4.6 + Haiku 4.5 + Whisper | Live |
+| Google Calendar | Google Calendar API (read + write) | Live |
+| Gmail | Gmail API — read, search, full body, reply | Live |
+| Web search | Tavily API | Live |
+| Google Maps | Places API + Directions API | Live |
+| Persistent memory | Upstash Redis | Live |
 | Automation | n8n / Make.com | Planned |
 | Whiteboard | Excalidraw / Miro | Planned |
