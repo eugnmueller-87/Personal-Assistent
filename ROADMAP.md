@@ -52,8 +52,10 @@ ICARUS Telegram (the only interface you need)
 
 ### Personal ops (remaining)
 - [ ] Email reply — reply or archive directly from Telegram (gmail.modify scope ready)
-- [ ] Web search — live data tool via Brave or Tavily API
+- [ ] Web search — live data tool via Brave or Tavily API (~2 hours)
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
+- [ ] Voice output (TTS) — ICARUS talks back, not just texts. OpenAI TTS or ElevenLabs (~1 day). Biggest single jump toward JARVIS feel.
+- [ ] Smarter proactivity — "meeting in 10 min", "Stefan hasn't replied in 3 days", calendar-aware reminders
 
 ### Spend Lens connection
 - [ ] ICARUS can trigger a Spend Lens analysis from Telegram ("run spend analysis on last month")
@@ -83,11 +85,20 @@ ICARUS Telegram (the only interface you need)
 - [ ] Deploy to Railway alongside or instead of Telegram bot
 - [ ] **Note:** `claude_router.py`, `google_client.py`, `github_client.py` — zero changes needed
 
-### Desktop app
-- [ ] Standalone desktop client for ICARUS (Electron or Tauri wrapping the PWA)
+### Desktop app — JARVIS mode
+- [ ] Standalone desktop client (Electron or Tauri wrapping the PWA)
 - [ ] Runs locally, no Railway dependency
-- [ ] Same full feature set — calendar, email, tasks, voice, image analysis
+- [ ] Always-on ambient overlay — present on screen without being in the way
+- [ ] Wake word detection — "Hey ICARUS" triggers listening (Porcupine, runs offline)
+- [ ] Voice output — ICARUS speaks responses back via TTS (OpenAI TTS or ElevenLabs)
+- [ ] Full feature set — calendar, email, tasks, voice, image analysis
 - [ ] Windows + Mac
+
+### Long-term JARVIS features (research phase)
+- [ ] Computer awareness — ICARUS can read active window/screen context
+- [ ] Computer control — open apps, search browser, execute actions on your machine
+- [ ] Smart home integration — lights, alerts, presence detection
+- [ ] Location awareness — context changes based on where you are (office vs home)
 
 ---
 
@@ -120,9 +131,16 @@ ICARUS Telegram (the only interface you need)
 | Persistent memory (Upstash Redis) | Live |
 | Email reply from Telegram | Planned |
 | Web search | Planned |
+| Voice output — ICARUS talks back (TTS) | Planned |
+| Smarter proactivity — meeting reminders, follow-up nudges | Planned |
 | Spend Lens agent connection | Planned |
 | LinkedIn marketing agent | Planned |
 | Weekly AI summary | Planned |
+| PWA — installable web app | Planned (Phase 4) |
+| Wake word — "Hey ICARUS" | Planned (Phase 4) |
+| Desktop app | Planned (Phase 4) |
+| Computer awareness + control | Research (Phase 5) |
+| Smart home integration | Research (Phase 5) |
 
 ---
 
