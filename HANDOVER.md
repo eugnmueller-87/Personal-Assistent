@@ -96,7 +96,11 @@ projects/
 | Any tool exception | `_call_tool` catches, returns error string — history stays clean |
 | GitHub dict response | `get_open_issues` guards with `isinstance(issues, dict)` |
 | GitHub missing `number` | `create_issue` already guarded |
-| Voice handler crash | try/except in `handle_voice`, error sent to Telegram |
+| Slash commands (/calendar, /emails, /issues, /summary, /roadmap, /task) | try/except per command, error sent to Telegram |
+| /summary — individual API failure | Each of three APIs wrapped separately — one failure doesn't block others |
+| Voice transcription (Whisper) crash | try/except in `handle_voice`, error sent to Telegram |
+| Voice route crash | try/except in `handle_voice`, error sent to Telegram |
+| Photo handler crash | try/except in `handle_photo`, error sent to Telegram |
 | Text handler crash | try/except in `handle_message`, error sent to Telegram |
 | Morning briefing crash | try/except in `morning_briefing`, logged only |
 | Email alert crash | try/except in `check_new_emails`, logged only |
@@ -119,6 +123,8 @@ projects/
 | Calendar write missing → `KeyError` | No calendar tool — Claude used `create_issue` instead | Added `create_calendar_event` tool |
 | Credentials exposed in chat | User pasted tokens in Telegram | All credentials rotated |
 | `string indices must be integers` | `get_open_issues` crashed on GitHub dict error → corrupted history → all subsequent queries fail | Fixed `get_open_issues` dict guard + wrapped `_call_tool` in try/except so tool errors never propagate |
+| Slash commands crashed silently | No try/except in slash command handlers — API failure = silent no-response | All slash commands now catch exceptions and reply with readable error |
+| Voice → silent failure on Whisper error | `try/finally` (no `except`) let Whisper exceptions propagate silently | Changed to `try/except/finally` — failures surface to Telegram |
 
 ---
 
