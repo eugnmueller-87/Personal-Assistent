@@ -50,8 +50,11 @@ ICARUS Telegram (the only interface you need)
 
 ### Personal ops (remaining)
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
+- [ ] Voice output (TTS) — ICARUS talks back. OpenAI TTS or ElevenLabs. Biggest JARVIS jump.
+- [ ] Smarter proactivity — "meeting in 10 min", "Stefan hasn't replied in 3 days"
 
 ### Agent hub (next phase)
+- [ ] Staging environment — dev branch + @IcarusORG_dev_bot before Spend Lens work
 - [ ] Spend Lens connection — trigger analyses, receive procurement alerts
 - [ ] LinkedIn marketing agent — Claude drafts, ICARUS previews, you confirm
 - [ ] Agent status overview — "what are all my agents doing?" in one message
@@ -89,3 +92,5 @@ ICARUS Telegram (the only interface you need)
 | GOOGLE_REFRESH_TOKEN | gcal_auth.py output |
 | UPSTASH_REDIS_URL | upstash.com |
 | UPSTASH_REDIS_TOKEN | upstash.com |
+| TAVILY_API_KEY | app.tavily.com |
+| GOOGLE_MAPS_API_KEY | Google Cloud Console (Places + Directions API) |

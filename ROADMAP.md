@@ -132,6 +132,7 @@ ICARUS Telegram (the only interface you need)
 | Google Calendar read + write | Live |
 | Gmail read (important only, time-filtered) | Live |
 | Gmail full body reader | Live |
+| Gmail search — body returned on single result | Live |
 | Email reply from Telegram (Send / Edit / Cancel) | Live |
 | Web search (Tavily) | Live |
 | Google Maps — places, directions, hours, ratings | Live |
@@ -141,13 +142,11 @@ ICARUS Telegram (the only interface you need)
 | Morning briefing 06:00 Berlin | Live |
 | Proactive email alerts (15 min polling) | Live |
 | Persistent memory (Upstash Redis) | Live |
-| Email reply from Telegram | Live |
-| Web search | Planned |
 | Voice output — ICARUS talks back (TTS) | Planned |
 | Smarter proactivity — meeting reminders, follow-up nudges | Planned |
+| Weekly AI summary | Planned |
 | Spend Lens agent connection | Planned |
 | LinkedIn marketing agent | Planned |
-| Weekly AI summary | Planned |
 | PWA — installable web app | Planned (Phase 4) |
 | Wake word — "Hey ICARUS" | Planned (Phase 4) |
 | Desktop app | Planned (Phase 4) |
