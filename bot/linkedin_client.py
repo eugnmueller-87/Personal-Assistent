@@ -1,8 +1,18 @@
 import os
+import re
 import requests
 
 _ACCESS_TOKEN = None
 _pending_posts: dict = {}
+
+# Add LinkedIn URNs for people or companies you mention frequently.
+# Format: lowercase name → LinkedIn URN
+# To find a URN: go to the LinkedIn page, click "More" → "Copy link",
+# or view page source and search for "organizationUrn" or "fsd_company".
+# Example: linkedin.com/company/ironhack → find the numeric ID in page source.
+KNOWN_MENTIONS: dict = {
+    # "ironhack": "urn:li:organization:REPLACE_WITH_IRONHACK_ID",
+}
 
 
 def _get_token() -> str:
@@ -22,25 +32,34 @@ def _get_user_id() -> str:
     return resp.json()["sub"]
 
 
+def _apply_mentions(text: str) -> str:
+    """Convert @Name to LTF mention syntax for known entities."""
+    def replace(m):
+        name = m.group(1)
+        urn = KNOWN_MENTIONS.get(name.lower())
+        if urn:
+            return f"@[{name}]({urn})"
+        return m.group(0)
+    return re.sub(r"@(\w+)", replace, text)
+
+
 def _publish(text: str) -> str:
     token = _get_token()
     author = f"urn:li:person:{_get_user_id()}"
+    commentary = _apply_mentions(text)
     payload = {
         "author": author,
+        "commentary": commentary,
+        "visibility": "PUBLIC",
+        "distribution": {"feedDistribution": "MAIN_FEED"},
         "lifecycleState": "PUBLISHED",
-        "specificContent": {
-            "com.linkedin.ugc.ShareContent": {
-                "shareCommentary": {"text": text},
-                "shareMediaCategory": "NONE",
-            }
-        },
-        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
     }
     resp = requests.post(
-        "https://api.linkedin.com/v2/ugcPosts",
+        "https://api.linkedin.com/rest/posts",
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "LinkedIn-Version": "202502",
             "X-Restli-Protocol-Version": "2.0.0",
         },
         json=payload,

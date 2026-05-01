@@ -153,7 +153,9 @@ def route(user_message: str, user_id: str = "default") -> str:
         "  HASHTAGS: 3-5 only, on their own line at the very end.\n"
         "  FORMATTING: Plain text only. No ---, no **, no __, no # headers, no markdown.\n"
         "  LENGTH: 150-300 words is the sweet spot for LinkedIn reach.\n"
-        "  TONE: Direct, human, first person. Write like a person, not a press release.\n\n"
+        "  TONE: Direct, human, first person. Write like a person, not a press release.\n"
+        "  MENTIONS: Use @Name (e.g. @Ironhack) to tag people or companies. "
+        "ICARUS will automatically convert known names to the correct LinkedIn format.\n\n"
         "Be concise and direct. No unnecessary filler. No markdown formatting — plain text only."
     )
 

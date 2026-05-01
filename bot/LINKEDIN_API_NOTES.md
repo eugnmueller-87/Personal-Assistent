@@ -1,76 +1,98 @@
-# LinkedIn API — Known Limitations & Findings
+# LinkedIn API — Implementation Notes
 
-## @Mentions in Posts — Does Not Work via UGC API
+## Status: Solved via Posts API + Little Text Format (LTF)
 
-### What was tried
+---
 
-The ICARUS bot posts to LinkedIn using the **UGC (User Generated Content) API** endpoint:
+## The Problem
+
+The original implementation used the **UGC API** (`/v2/ugcPosts`). Plain `@mentions` in that
+API's text field are treated as literal strings — LinkedIn does not resolve them into tagged
+profile links.
+
+## The Solution — Little Text Format (LTF)
+
+LinkedIn's newer **Posts API** (`/rest/posts`) supports **Little Text Format**, a markup
+syntax that embeds real mentions and hashtags directly in the commentary string.
+
+Reference: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format
+
+### Mention syntax
 
 ```
-POST https://api.linkedin.com/v2/ugcPosts
+@[DisplayName](urn:li:organization:12345)   ← company / school
+@[DisplayName](urn:li:person:abcXYZ)        ← person
 ```
 
-The initial attempt included `@Ironhack` and similar mentions directly in the post text:
+### Hashtag syntax
+
+```
+#hashtag                                     ← plain, works natively
+{hashtag|\#|MyTag}                           ← explicit LTF template
+```
+
+### Full Posts API payload
 
 ```json
 {
-  "specificContent": {
-    "com.linkedin.ugc.ShareContent": {
-      "shareCommentary": {
-        "text": "Just finished Week 2 at @Ironhack Berlin..."
-      }
-    }
-  }
+  "author": "urn:li:person:YOUR_PERSON_URN",
+  "commentary": "Just finished Week 2 at @[Ironhack](urn:li:organization:XXXXX). Amazing. #AI #Bootcamp",
+  "visibility": "PUBLIC",
+  "distribution": { "feedDistribution": "MAIN_FEED" },
+  "lifecycleState": "PUBLISHED"
 }
 ```
 
-Plain `@mentions` in the text field are treated as literal strings — LinkedIn does not resolve them into tagged profile links.
-
-### Why it doesn't work
-
-LinkedIn's API separates **plain text** from **attributed entities** (tagged people or companies). To create a real @mention, the API requires:
-
-1. The target person's or company's LinkedIn URN (e.g. `urn:li:organization:12345`)
-2. The exact character offset and length of the mention in the text
-3. The `attributes` array inside `shareCommentary`
-
-Example of what a working mention payload would look like:
-
-```json
-{
-  "shareCommentary": {
-    "text": "Just finished Week 2 at Ironhack Berlin...",
-    "attributes": [
-      {
-        "start": 24,
-        "length": 15,
-        "value": {
-          "com.linkedin.common.CompanyAttributedEntity": {
-            "company": "urn:li:organization:2821965"
-          }
-        }
-      }
-    ]
-  }
-}
+Headers required:
+```
+Authorization: Bearer <access_token>
+LinkedIn-Version: 202502
+X-Restli-Protocol-Version: 2.0.0
+Content-Type: application/json
 ```
 
-### Why this is not implemented
+---
 
-- Resolving a name like "Ironhack" to a LinkedIn URN requires a separate **Organization Search API** call
-- That API requires the **Marketing Developer Platform** product on the LinkedIn app
-- Marketing Developer Platform access requires LinkedIn approval and is restricted to companies/agencies — not available for personal developer apps
-- The ICARUS app uses the `w_member_social` scope (personal posting only), which does not include URN lookup
+## How ICARUS Uses It
 
-### Current workaround
+`linkedin_client.py` now uses the Posts API with LTF. A `KNOWN_MENTIONS` dict maps
+lowercase names to their LinkedIn URNs. Before publishing, `_apply_mentions()` scans
+the post text for `@Name` patterns and replaces them with the correct LTF syntax.
 
-Posts are created via the API without mentions. After posting, the user manually edits the post on LinkedIn to add the `@tag`. LinkedIn's post editor supports this natively.
+Claude is instructed to write `@Ironhack` in posts — ICARUS converts it automatically.
 
-### Potential solution path
+### Adding a new mention target
 
-If Marketing Developer Platform access were granted:
-1. Call `GET https://api.linkedin.com/v2/organizationAcls` or use the typeahead search to resolve a company name to its URN
-2. Store a small lookup table of frequently tagged people/companies and their URNs
-3. Before posting, detect `@Name` patterns in the text and replace them with the correct attribute objects
+1. Find the LinkedIn numeric ID for the person or company:
+   - Go to their LinkedIn page
+   - View page source → search for `organizationUrn` or `fsd_company`
+   - The numeric ID appears in the URL or source as e.g. `2414183`
 
-This is buildable — it just requires API tier access that is not available on a personal developer app.
+2. Add to `KNOWN_MENTIONS` in `linkedin_client.py`:
+   ```python
+   KNOWN_MENTIONS = {
+       "ironhack": "urn:li:organization:REPLACE_WITH_ID",
+   }
+   ```
+
+---
+
+## What Still Requires Marketing API
+
+Mentioning arbitrary people or companies by name (without pre-knowing their URN) requires
+a **name-to-URN search**, which is part of the Marketing Developer Platform. That product
+is not available on personal developer apps.
+
+For a fixed set of known entities (e.g. your bootcamp, regular collaborators), the
+`KNOWN_MENTIONS` dict approach covers the practical use case without any additional API access.
+
+---
+
+## Migration Summary
+
+| | Old (UGC API) | New (Posts API + LTF) |
+|---|---|---|
+| Endpoint | `/v2/ugcPosts` | `/rest/posts` |
+| @mentions | Not supported | Supported via LTF |
+| Hashtags | Literal text only | Native support |
+| Headers | — | `LinkedIn-Version: 202502` required |
