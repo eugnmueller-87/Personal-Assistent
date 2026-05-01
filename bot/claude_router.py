@@ -197,8 +197,9 @@ def route(user_message: str, user_id: str = "default") -> str:
 
     history.append({"role": "assistant", "content": response.content})
 
-    if len(history) > MAX_HISTORY * 2:
-        _history[user_id] = history[-(MAX_HISTORY * 2):]
+    # Clean tool_use/tool_result blocks after each turn — prevents orphaned tool_result
+    # errors when history is long and gets trimmed mid-pair
+    _history[user_id] = _clean_for_storage(history)
 
     _save_history(user_id)
     return final
