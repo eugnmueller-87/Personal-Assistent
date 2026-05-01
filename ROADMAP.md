@@ -77,8 +77,20 @@ ICARUS Telegram (the only interface you need)
 - [ ] Auto-post on major milestones (configurable)
 - [ ] Post history tracked in GitHub Issues
 
-### Dev & ops
-- [ ] Staging environment — dev branch + second Railway service + @IcarusORG_dev_bot. Test all changes here before merging to main. Separate Redis prefix to avoid history bleed. Set up before Spend Lens connection work begins.
+### Dev & ops — Sandbox First (P0 before Spend Lens)
+
+**Principle:** never test on the bot that manages real calendar, email, and business data.
+
+- [ ] **Sandbox setup (~1 hour, zero prod risk):**
+  1. Create `dev` branch from current `main` — no code changes yet
+  2. Create second Railway service pointing to `dev` branch — prod service untouched
+  3. Copy all env vars to dev service — new `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` only
+  4. Create `@IcarusORG_dev_bot` via BotFather — separate bot, separate token
+  5. Add `dev:` Redis key prefix on dev branch only — prod keys never touched
+  6. Verify dev bot works end-to-end — prod runs the whole time, never paused
+- [ ] **Workflow going forward:** develop on `dev` → test on `@IcarusORG_dev_bot` → merge to `main` → prod auto-deploys
+- [ ] **CI update:** run tests on `dev` branch as well as `main`
+- [ ] **Railway Hobby plan** ($5/month) — free tier only covers 500h/month; two always-on services need Hobby
 
 ---
 
