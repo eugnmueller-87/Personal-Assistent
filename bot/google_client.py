@@ -138,7 +138,11 @@ def create_calendar_event(
     start_time: str = None,
     end_time: str = None,
     recurrence: str = None,
+    attendees: list = None,
+    location: str = None,
+    add_meet: bool = False,
 ) -> str:
+    import uuid
     creds = get_creds()
     service = build("calendar", "v3", credentials=creds)
 
@@ -161,8 +165,40 @@ def create_calendar_event(
     if recurrence:
         event["recurrence"] = [recurrence]
 
-    result = service.events().insert(calendarId="primary", body=event).execute()
-    return f"Created: {result.get('summary')} on {date}" + (f" (recurring)" if recurrence else "")
+    if location:
+        event["location"] = location
+
+    if attendees:
+        event["attendees"] = [{"email": e.strip()} for e in attendees]
+
+    if add_meet:
+        event["conferenceData"] = {
+            "createRequest": {
+                "requestId": str(uuid.uuid4()),
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            }
+        }
+
+    result = service.events().insert(
+        calendarId="primary",
+        body=event,
+        conferenceDataVersion=1 if add_meet else 0,
+        sendUpdates="all" if attendees else "none",
+    ).execute()
+
+    parts = [f"Created: {result.get('summary')} on {date}"]
+    if recurrence:
+        parts.append("(recurring)")
+    if location:
+        parts.append(f"Location: {location}")
+    if attendees:
+        parts.append(f"Invited: {', '.join(attendees)}")
+    if add_meet:
+        entry_points = result.get("conferenceData", {}).get("entryPoints", [])
+        meet_link = next((ep["uri"] for ep in entry_points if ep.get("entryPointType") == "video"), "")
+        if meet_link:
+            parts.append(f"Meet: {meet_link}")
+    return "\n".join(parts)
 
 
 def delete_calendar_event(event_id: str) -> str:
