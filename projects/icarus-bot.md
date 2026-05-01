@@ -1,9 +1,6 @@
 # ICARUS Telegram — Command Center
 
-**Bot:** @IcarusORG_bot
 **Status:** Live — fully operational
-**Hosting:** Railway (free tier, always-on)
-**Public repo:** github.com/eugnmueller-87/Personal-Assistent
 **Role:** The single interface for all agents, projects, and personal ops. You talk to ICARUS. ICARUS commands everything else.
 
 ---
@@ -26,25 +23,25 @@ ICARUS Telegram (the only interface you need)
 | Capability | Detail |
 |---|---|
 | Commands | /calendar, /emails, /issues, /summary, /roadmap, /task |
-| Natural language — text | Claude Sonnet 4.6 tool-use agent |
-| Natural language — voice | OpenAI Whisper transcription |
+| Natural language — text | Claude tool-use agent |
+| Natural language — voice | Whisper transcription |
 | Image / document analysis | Claude multimodal — invoices, contracts, whiteboards |
 | Google Calendar read | This week's events |
 | Google Calendar write | Create events from voice or text |
 | Gmail read | Important-only, last 3 days default, time-based queries |
-| Gmail full body | get_email_body — fetches format=full, extracts plain text |
-| Gmail search | search_emails — returns body directly when single result found |
+| Gmail full body | Fetches and extracts plain text |
+| Gmail search | Returns body directly when single result found |
 | Email reply | Send / Edit / Cancel approval flow from Telegram |
-| Proactive email alerts | Polls every 15 min, Haiku judges urgency, no spam |
+| Proactive email alerts | Polls every 15 min, AI judges urgency, no spam |
 | Morning briefing | 06:00 Berlin, Claude-composed daily brief |
 | GitHub Issues | Read open tasks, create new ones |
 | Roadmap reader | Reads any project markdown from private repo |
-| Web search | Tavily API — live news, prices, company info, current events |
-| Google Maps | Places API + Directions API — find places, hours, ratings, travel time |
+| Web search | Live news, prices, company info, current events |
+| Google Maps | Places + Directions — find places, hours, ratings, travel time |
 | Shopping list | Add/remove/clear items conversationally — persisted in Redis |
 | Expense tracker | Log by text or receipt photo — weekly/monthly summary by store |
-| Multi-model routing | Haiku for simple, Sonnet 4.6 for complex (~€4/month) |
-| Persistent memory | Upstash Redis — survives restarts and redeploys |
+| Multi-model routing | Fast model for simple, full model for complex |
+| Persistent memory | Survives restarts and redeploys |
 
 ---
 
@@ -52,11 +49,11 @@ ICARUS Telegram (the only interface you need)
 
 ### Personal ops (remaining)
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
-- [ ] Voice output (TTS) — ICARUS talks back. OpenAI TTS or ElevenLabs. Biggest JARVIS jump.
+- [ ] Voice output (TTS) — ICARUS talks back
 - [ ] Smarter proactivity — "meeting in 10 min", "Stefan hasn't replied in 3 days"
 
 ### Agent hub (next phase)
-- [ ] Staging environment — dev branch + @IcarusORG_dev_bot before Spend Lens work
+- [ ] Staging environment — dev branch before Spend Lens work
 - [ ] Spend Lens connection — trigger analyses, receive procurement alerts
 - [ ] LinkedIn marketing agent — Claude drafts, ICARUS previews, you confirm
 - [ ] Agent status overview — "what are all my agents doing?" in one message
@@ -68,31 +65,13 @@ ICARUS Telegram (the only interface you need)
 | Component | Tool |
 |---|---|
 | Bot framework | python-telegram-bot[job-queue] |
-| AI — complex | Claude Sonnet 4.6 (tool-use agent) |
-| AI — simple | Claude Haiku 4.5 (fast routing) |
-| AI — images | Claude Sonnet 4.6 (multimodal) |
+| AI — complex | Claude Sonnet (tool-use agent) |
+| AI — simple | Claude Haiku (fast routing) |
+| AI — images | Claude Sonnet (multimodal) |
 | Voice | OpenAI Whisper API |
-| Calendar | Google Calendar API (read + write) |
-| Email | Gmail API (modify scope) |
+| Calendar | Google Calendar API |
+| Email | Gmail API |
 | Tasks | GitHub Issues API |
-| Memory | Upstash Redis (free tier) |
-| Hosting | Railway (free tier) |
+| Memory | Redis |
+| Hosting | Railway |
 | Scheduling | APScheduler via job_queue |
-
-## Environment Variables
-
-| Variable | Source |
-|---|---|
-| TELEGRAM_BOT_TOKEN | BotFather |
-| TELEGRAM_CHAT_ID | Your Telegram user ID |
-| ANTHROPIC_API_KEY | console.anthropic.com |
-| OPENAI_API_KEY | platform.openai.com |
-| GITHUB_TOKEN | github.com/settings/tokens (no expiry) |
-| GITHUB_REPO | username/repo-name |
-| GOOGLE_CLIENT_ID | Google Cloud Console |
-| GOOGLE_CLIENT_SECRET | Google Cloud Console |
-| GOOGLE_REFRESH_TOKEN | gcal_auth.py output |
-| UPSTASH_REDIS_URL | upstash.com |
-| UPSTASH_REDIS_TOKEN | upstash.com |
-| TAVILY_API_KEY | app.tavily.com |
-| GOOGLE_MAPS_API_KEY | Google Cloud Console (Places + Directions API) |

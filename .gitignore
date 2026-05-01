@@ -5,6 +5,8 @@ credentials/
 
 # Private ops docs — stay local only
 HANDOVER.md
+SESSION_*.md
+workflows/gcal_auth.py
 
 # OS
 .DS_Store

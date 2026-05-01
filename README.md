@@ -36,7 +36,7 @@ ORG-EUGEN/
 |-------|------|--------|
 | Task tracking | GitHub Issues + TODO.md | Live |
 | Weekly review | GitHub Actions (Monday 08:00 UTC) | Live |
-| ICARUS — interactive AI assistant | @IcarusORG_bot on Railway | Live |
+| ICARUS — interactive AI assistant | Telegram bot on Railway | Live |
 | Natural language + voice + images | Claude Sonnet 4.6 + Haiku 4.5 + Whisper | Live |
 | Google Calendar | Google Calendar API (read + write) | Live |
 | Gmail | Gmail API — read, search, full body, reply | Live |
@@ -44,6 +44,6 @@ ORG-EUGEN/
 | Google Maps | Places API + Directions API | Live |
 | Persistent memory | Upstash Redis | Live |
 | Health monitoring | GitHub Actions cron + `/health` endpoint — Telegram alert if bot is down | Live |
-| Self-healing | Auto-debug: exception → Claude fix → GitHub commit → Railway redeploy | Live |
+| Self-healing | Exception → fix proposal → human review → redeploy | Live |
 | Automation | n8n / Make.com | Planned |
 | Whiteboard | Excalidraw / Miro | Planned |

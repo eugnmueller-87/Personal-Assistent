@@ -1,6 +1,6 @@
 # ICARUS — Personal AI Assistant
 
-A self-hosted personal assistant that lives in Telegram. Powered by Claude AI. Reads and replies to emails, manages your calendar, searches the web, finds places, handles tasks — all from a single chat. Deployed on Railway, always on.
+A self-hosted personal assistant that lives in Telegram. Powered by Claude AI. Reads and replies to emails, manages your calendar, searches the web, finds places, handles tasks — all from a single chat.
 
 ---
 
@@ -10,25 +10,20 @@ A self-hosted personal assistant that lives in Telegram. Powered by Claude AI. R
 
 | Capability | Detail |
 |---|---|
-| Natural language — text | Claude Sonnet 4.6 tool-use agent |
-| Natural language — voice | OpenAI Whisper transcription |
+| Natural language — text | Claude tool-use agent |
+| Natural language — voice | Whisper transcription |
 | Image / document analysis | Claude multimodal — invoices, contracts, whiteboards |
-| Google Calendar read | This week's events |
-| Google Calendar write | Create events from voice or text |
-| Gmail read | Important-only, last 3 days, time-based queries |
-| Gmail search | Find any email by person, subject, folder, or date |
-| Gmail full body | Read the actual message content |
-| Email reply | Draft + Send / Edit / Cancel approval flow |
-| Proactive email alerts | Polls every 15 min, AI urgency filter, no spam |
-| Morning briefing | 06:00 Berlin — calendar + emails + tasks |
-| Web search | Tavily API — live news, prices, company info |
+| Google Calendar | Read this week's events, create new events |
+| Gmail | Read, search, full body, reply with approval flow |
+| Proactive email alerts | Urgency-filtered, no spam |
+| Morning briefing | Daily brief — calendar + emails + tasks |
+| Web search | Live news, prices, company info, current events |
 | Google Maps | Places, directions, opening hours, ratings |
 | GitHub Issues | Read open tasks, create new ones |
-| Roadmap reader | Read any project markdown from repo |
-| Multi-model routing | Haiku for simple, Sonnet for complex (~€4/month) |
-| Persistent memory | Upstash Redis — survives restarts |
-| Health monitoring | GitHub Actions pings `/health` every 10 min — Telegram alert if down |
-| Self-healing | Exceptions auto-fix: Claude reads the broken file, commits a fix, Railway redeploys |
+| Multi-model routing | Fast model for simple queries, full model for complex |
+| Persistent memory | Conversation history survives restarts |
+| Health monitoring | Automated uptime check with instant alerts |
+| Self-healing | Exceptions trigger a fix proposal for human review before deploy |
 
 ### Commands
 | Command | What it does |
@@ -44,8 +39,7 @@ A self-hosted personal assistant that lives in Telegram. Powered by Claude AI. R
 - _"Show me the email from Eve"_ → reads full body
 - _"Reply to Stefan: confirmed for Thursday"_ → stages reply for approval
 - _"What's the weather in Munich tomorrow?"_ → live web search
-- _"Find a sushi place near Marienplatz"_ → Places API + Maps link
-- _"How long from Munich to Berlin by train?"_ → Directions API
+- _"Find a sushi place near Marienplatz"_ → Places + Maps link
 - _"Add task: prepare Q2 review"_ → creates GitHub issue
 
 ---
@@ -54,62 +48,16 @@ A self-hosted personal assistant that lives in Telegram. Powered by Claude AI. R
 
 | Component | Tool |
 |---|---|
-| Bot framework | python-telegram-bot[job-queue] |
-| AI — complex | Claude Sonnet 4.6 (tool-use agent) |
-| AI — simple | Claude Haiku 4.5 (fast routing) |
-| AI — images | Claude Sonnet 4.6 (multimodal) |
-| Voice | OpenAI Whisper API |
-| Calendar | Google Calendar API (read + write) |
-| Email | Gmail API (modify scope) |
-| Web search | Tavily API |
-| Maps | Google Places API + Directions API |
+| Bot framework | python-telegram-bot |
+| AI | Claude (Anthropic) |
+| Voice | Whisper |
+| Calendar | Google Calendar API |
+| Email | Gmail API |
+| Web search | Tavily |
+| Maps | Google Maps APIs |
 | Tasks | GitHub Issues API |
-| Memory | Upstash Redis (free tier) |
-| Hosting | Railway (free tier, web process with public URL) |
-| Scheduling | APScheduler via job_queue |
-| Health check | GitHub Actions cron (every 10 min) |
-
----
-
-## Environment Variables
-
-```env
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-ANTHROPIC_API_KEY=
-OPENAI_API_KEY=
-GITHUB_TOKEN=
-GITHUB_REPO=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REFRESH_TOKEN=
-UPSTASH_REDIS_URL=
-UPSTASH_REDIS_TOKEN=
-TAVILY_API_KEY=
-GOOGLE_MAPS_API_KEY=
-```
-
----
-
-## Architecture
-
-```
-Telegram (you)
-     │
-     ▼
-python-telegram-bot (Railway, always-on)
-     │
-     ├── voice  → Whisper → text → claude_router
-     ├── photo  → Claude Sonnet (multimodal)
-     └── text   → _pick_model() → Haiku or Sonnet
-                       └── tool-use agent loop
-                             ├── get_calendar / create_calendar_event
-                             ├── get_emails / search_emails / get_email_body
-                             ├── stage_email_reply → send_reply
-                             ├── get_issues / create_issue / get_roadmap
-                             ├── web_search (Tavily)
-                             └── find_place / get_directions (Google Maps)
-```
+| Memory | Redis |
+| Hosting | Railway |
 
 ---
 
