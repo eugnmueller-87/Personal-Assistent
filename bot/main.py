@@ -2,8 +2,10 @@ import os
 import asyncio
 import tempfile
 import logging
+import threading
 from datetime import time as dtime
 from zoneinfo import ZoneInfo
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from openai import OpenAI
@@ -18,6 +20,25 @@ BERLIN = ZoneInfo("Europe/Berlin")
 _alerted_email_ids: set = set()
 
 logging.basicConfig(level=logging.INFO)
+
+
+class _HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, *args):
+        pass
+
+
+def _start_health_server():
+    port = int(os.environ.get("PORT", 8080))
+    HTTPServer(("0.0.0.0", port), _HealthHandler).serve_forever()
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -279,7 +300,9 @@ async def morning_briefing(context):
             text=f"☀️ Morning brief\n\n{brief}",
         )
     except Exception as e:
+        import traceback as _tb
         logging.error(f"[ICARUS] morning_briefing failed: {e}")
+        asyncio.create_task(handle_error(e, _tb.format_exc()))
 
 
 async def check_new_emails(context):
@@ -298,7 +321,9 @@ async def check_new_emails(context):
                 text=f"📧 Heads up:\n\n{formatted}",
             )
     except Exception as e:
+        import traceback as _tb
         logging.error(f"[ICARUS] check_new_emails failed: {e}")
+        asyncio.create_task(handle_error(e, _tb.format_exc()))
 
 
 async def post_init(app: Application):
@@ -308,6 +333,8 @@ async def post_init(app: Application):
 
 
 def main():
+    threading.Thread(target=_start_health_server, daemon=True).start()
+
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     app = Application.builder().token(token).post_init(post_init).build()
 
