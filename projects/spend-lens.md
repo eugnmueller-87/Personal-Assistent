@@ -68,18 +68,6 @@ Spend Lens Icarus (Supervisor) will connect upward to ICARUS Telegram — the ce
 - [ ] Sign first pilot contract (€299–599/month)
 - [ ] Data Processing Agreement (DPA) template
 
-## Commercial Roadmap
-
-| Phase | Target | Revenue |
-|-------|--------|---------|
-| 0 — Prototype | Now ✅ | €0 |
-| 1 — First client | Q3 2026 | €299–599/mo |
-| 2 — Pilot SaaS | Q4 2026–Q1 2027 | €900–3,000/mo |
-| 3 — Commercial SaaS | Q2–Q3 2027 | €8,000–16,000/mo |
-| 4 — Enterprise | 2028+ | €55,000–90,000/mo |
-
-**Critical path:** Security layer (S1–S7, ~8 days) → one pilot client signed.
-
 ## Notes
 - Start app: `PYTHONUTF8=1 panel serve app.py --show --port 5006` (Git Bash, from SpendLens_App/)
 - `PYTHONUTF8=1` required on Windows for German umlauts
