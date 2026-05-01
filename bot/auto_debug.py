@@ -11,6 +11,16 @@ from audit_log import log_event
 _MAX_ATTEMPTS = 2
 _fix_attempts: dict = {}
 
+FORBIDDEN_AUTO_FIX_FILES = {
+    "bot/auto_debug.py",
+    "bot/claude_router.py",
+    "bot/main.py",
+    "bot/google_client.py",
+    "bot/github_client.py",
+    "bot/linkedin_client.py",
+    "bot/skills/__init__.py",
+}
+
 
 def _notify(message: str):
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -131,6 +141,11 @@ async def handle_error(exc: Exception, tb_str: str):
     if not file_path:
         _notify(f"ICARUS error (unknown file — manual fix needed):\n{error_summary}")
         log_event("error_unhandled", error_summary)
+        return
+
+    if file_path in FORBIDDEN_AUTO_FIX_FILES:
+        _notify(f"ICARUS error in {file_path} (protected file — manual fix required):\n{error_summary}")
+        log_event("auto_fix_blocked", f"{file_path}: {error_summary[:100]}")
         return
 
     attempts = _fix_attempts.get(file_path, 0)

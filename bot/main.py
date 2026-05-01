@@ -43,10 +43,9 @@ def _start_health_server():
 
 
 def _allowed_filter():
-    allowed = os.environ.get("TELEGRAM_CHAT_ID", "")
+    allowed = os.environ.get("TELEGRAM_CHAT_ID")
     if not allowed:
-        logging.warning("[ICARUS] TELEGRAM_CHAT_ID not set — bot is open to everyone")
-        return filters.ALL
+        raise RuntimeError("TELEGRAM_CHAT_ID must be set — refusing to start without owner auth")
     return filters.User(user_id=int(allowed))
 
 
