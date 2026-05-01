@@ -6,7 +6,6 @@ import logging
 import requests
 import anthropic
 
-RAILWAY_REPO = os.environ.get("RAILWAY_REPO", "eugnmueller-87/Personal-Assistent")
 _REDIS_KEY = "icarus:pending_fix"
 _MAX_ATTEMPTS = 2
 _fix_attempts: dict = {}
@@ -38,8 +37,11 @@ def _get_redis():
 
 
 def _get_file(path: str):
+    repo = os.environ.get("RAILWAY_REPO", "")
     token = os.environ.get("GITHUB_TOKEN", "")
-    url = f"https://api.github.com/repos/{RAILWAY_REPO}/contents/{path}"
+    if not repo:
+        return None, None
+    url = f"https://api.github.com/repos/{repo}/contents/{path}"
     r = requests.get(url, headers={"Authorization": f"token {token}"}, timeout=10)
     if r.status_code != 200:
         return None, None
@@ -48,8 +50,11 @@ def _get_file(path: str):
 
 
 def _commit_fix(path: str, content: str, sha: str, summary: str) -> bool:
+    repo = os.environ.get("RAILWAY_REPO", "")
     token = os.environ.get("GITHUB_TOKEN", "")
-    url = f"https://api.github.com/repos/{RAILWAY_REPO}/contents/{path}"
+    if not repo:
+        return False
+    url = f"https://api.github.com/repos/{repo}/contents/{path}"
     body = {
         "message": f"Auto-fix: {summary[:72]}",
         "content": base64.b64encode(content.encode()).decode(),
@@ -135,7 +140,7 @@ async def handle_error(exc: Exception, tb_str: str):
         return
 
     if not committed:
-        _notify(f"Auto-fix failed: couldn't push to {RAILWAY_REPO}/{file_path}.")
+        _notify(f"Auto-fix failed: couldn't push fix to GitHub ({file_path}).")
         return
 
     r = _get_redis()
