@@ -42,6 +42,14 @@ def _start_health_server():
     HTTPServer(("0.0.0.0", port), _HealthHandler).serve_forever()
 
 
+def _allowed_filter():
+    allowed = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not allowed:
+        logging.warning("[ICARUS] TELEGRAM_CHAT_ID not set — bot is open to everyone")
+        return filters.ALL
+    return filters.User(user_id=int(allowed))
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "ICARUS online.\n\n"
@@ -128,10 +136,6 @@ async def task(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    allowed_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if user_id != allowed_id:
-        return
-
     await update.message.reply_text("Transcribing...")
 
     voice_file = await context.bot.get_file(update.message.voice.file_id)
@@ -169,10 +173,6 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    allowed_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if user_id != allowed_id:
-        return
-
     await update.message.reply_text("Reading image...")
 
     photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
@@ -197,10 +197,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    allowed_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if user_id != allowed_id:
-        return
-
     text = update.message.text
 
     if is_edit_mode(user_id):
@@ -346,17 +342,19 @@ def main():
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     app = Application.builder().token(token).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("calendar", calendar))
-    app.add_handler(CommandHandler("emails", emails))
-    app.add_handler(CommandHandler("issues", issues))
-    app.add_handler(CommandHandler("summary", summary))
-    app.add_handler(CommandHandler("roadmap", roadmap))
-    app.add_handler(CommandHandler("task", task))
-    app.add_handler(CommandHandler("audit", audit))
-    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    auth = _allowed_filter()
+
+    app.add_handler(CommandHandler("start", start, filters=auth))
+    app.add_handler(CommandHandler("calendar", calendar, filters=auth))
+    app.add_handler(CommandHandler("emails", emails, filters=auth))
+    app.add_handler(CommandHandler("issues", issues, filters=auth))
+    app.add_handler(CommandHandler("summary", summary, filters=auth))
+    app.add_handler(CommandHandler("roadmap", roadmap, filters=auth))
+    app.add_handler(CommandHandler("task", task, filters=auth))
+    app.add_handler(CommandHandler("audit", audit, filters=auth))
+    app.add_handler(MessageHandler(filters.VOICE & auth, handle_voice))
+    app.add_handler(MessageHandler(filters.PHOTO & auth, handle_photo))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & auth, handle_message))
     app.add_handler(CallbackQueryHandler(handle_reply_callback))
 
     app.job_queue.run_daily(morning_briefing, time=dtime(hour=6, minute=0, tzinfo=BERLIN))
