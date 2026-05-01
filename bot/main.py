@@ -1,4 +1,5 @@
 import os
+import asyncio
 import tempfile
 import logging
 from datetime import time as dtime
@@ -11,6 +12,7 @@ from github_client import get_open_issues, get_roadmap, create_issue
 from claude_router import route, route_image, compose_morning_brief, is_email_urgent
 from skills.email import get_pending_reply, clear_pending_reply, confirm_send_reply, set_edit_mode, is_edit_mode, update_pending_draft
 from linkedin_client import get_pending_post, clear_pending_post, confirm_post, update_pending_post
+from auto_debug import handle_error, check_pending_fix
 
 BERLIN = ZoneInfo("Europe/Berlin")
 _alerted_email_ids: set = set()
@@ -138,7 +140,9 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = route(text, user_id=user_id)
         await _reply_with_approval(update, user_id, result)
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        import traceback as _tb
+        asyncio.create_task(handle_error(e, _tb.format_exc()))
+        await update.message.reply_text("Hit an error. Auto-fixing — back in ~2 min.")
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -162,7 +166,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = route_image(image_bytes, caption=caption, user_id=user_id)
         await update.message.reply_text(result)
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        import traceback as _tb
+        asyncio.create_task(handle_error(e, _tb.format_exc()))
+        await update.message.reply_text("Hit an error. Auto-fixing — back in ~2 min.")
     finally:
         os.unlink(tmp_path)
 
@@ -204,7 +210,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = route(text, user_id=user_id)
         await _reply_with_approval(update, user_id, result)
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        import traceback as _tb
+        asyncio.create_task(handle_error(e, _tb.format_exc()))
+        await update.message.reply_text("Hit an error. Auto-fixing — back in ~2 min.")
 
 
 async def _reply_with_approval(update: Update, user_id: str, text: str):
@@ -293,9 +301,15 @@ async def check_new_emails(context):
         logging.error(f"[ICARUS] check_new_emails failed: {e}")
 
 
+async def post_init(app: Application):
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if chat_id:
+        await check_pending_fix(app.bot, chat_id)
+
+
 def main():
     token = os.environ["TELEGRAM_BOT_TOKEN"]
-    app = Application.builder().token(token).build()
+    app = Application.builder().token(token).post_init(post_init).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("calendar", calendar))
