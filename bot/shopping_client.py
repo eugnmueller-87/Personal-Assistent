@@ -65,6 +65,19 @@ def clear_shopping_list(user_id: str):
 
 # --- Expense tracking ---
 
+def _store_emoji(store: str) -> str:
+    w = store.lower()
+    if any(k in w for k in ["restaurant","café","cafe","pizza","burger","sushi","bistro","bar","grill","ristorante","küche","kitchen"]):
+        return "🍽️"
+    if any(k in w for k in ["tankstelle","shell","aral","bp","total","esso"]):
+        return "⛽"
+    if any(k in w for k in ["apotheke","pharmacy"]):
+        return "💊"
+    if any(k in w for k in ["rewe","aldi","lidl","edeka","kaufland","penny","netto","spar","alnatura","bio"]):
+        return "🏪"
+    return "🛍️"
+
+
 def log_expense(user_id: str, amount: float, store: str, items: str = "", currency: str = "EUR") -> str:
     r = _redis()
     if not r:
@@ -84,7 +97,8 @@ def log_expense(user_id: str, amount: float, store: str, items: str = "", curren
         expenses = json.loads(data) if data else []
         expenses.append(entry)
         r.set(key, json.dumps(expenses))
-        return f"Logged: {currency} {amount:.2f} at {store} on {entry['date']}."
+        item_note = f" — {items}" if items else ""
+        return f"✅ {_store_emoji(store)} {store} · {currency} {amount:.2f}{item_note}"
     except Exception as e:
         logging.warning(f"[ICARUS] expense log failed: {e}")
         return f"Failed to log expense: {e}"
@@ -102,39 +116,38 @@ def get_expenses(user_id: str, period: str = "month") -> str:
 
         now = datetime.now(ZoneInfo(TIMEZONE))
         if period == "week":
-            cutoff = now.strftime("%Y-%m-%d")
             from datetime import timedelta
             cutoff_dt = now - timedelta(days=7)
             filtered = [e for e in expenses if e["date"] >= cutoff_dt.strftime("%Y-%m-%d")]
-            label = "last 7 days"
+            label = "Last 7 days"
         elif period == "month":
             prefix = now.strftime("%Y-%m")
             filtered = [e for e in expenses if e["date"].startswith(prefix)]
             label = now.strftime("%B %Y")
         elif period == "all":
             filtered = expenses
-            label = "all time"
+            label = "All time"
         else:
             filtered = expenses
-            label = "all time"
+            label = "All time"
 
         if not filtered:
-            return f"No expenses in {label}."
+            return f"No expenses in {label.lower()}."
 
         total = sum(e["amount"] for e in filtered)
         by_store: dict = {}
         for e in filtered:
             by_store[e["store"]] = by_store.get(e["store"], 0) + e["amount"]
 
-        lines = [f"Expenses — {label}"]
-        lines.append(f"Total: EUR {total:.2f}")
-        lines.append("")
+        lines = [f"💶 {label} — EUR {total:.2f}", ""]
         for store, amt in sorted(by_store.items(), key=lambda x: -x[1]):
-            lines.append(f"  {store}: EUR {amt:.2f}")
+            lines.append(f"{_store_emoji(store)} {store} · EUR {amt:.2f}")
         lines.append("")
+        lines.append("─────────────────")
         for e in sorted(filtered, key=lambda x: x["date"], reverse=True)[:10]:
-            item_note = f" ({e['items']})" if e["items"] else ""
-            lines.append(f"  {e['date']} — EUR {e['amount']:.2f} at {e['store']}{item_note}")
+            item_note = f"  ({e['items']})" if e["items"] else ""
+            date_short = e["date"][5:]  # MM-DD
+            lines.append(f"{date_short}  {e['store']}  EUR {e['amount']:.2f}{item_note}")
 
         return "\n".join(lines)
     except Exception as e:
