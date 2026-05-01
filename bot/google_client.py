@@ -156,10 +156,11 @@ def create_calendar_event(
             "end": {"dateTime": f"{date}T{end_time}:00", "timeZone": TIMEZONE},
         }
     else:
+        end_date = (datetime.fromisoformat(date) + timedelta(days=1)).strftime("%Y-%m-%d")
         event = {
             "summary": summary,
             "start": {"date": date},
-            "end": {"date": date},
+            "end": {"date": end_date},
         }
 
     if recurrence:
