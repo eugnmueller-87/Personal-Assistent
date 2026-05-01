@@ -1,8 +1,11 @@
+import os
+import json
 import logging
 from google_client import get_unread_emails, search_emails, get_email_body, get_email_details, send_reply
 
 _pending_replies: dict = {}
 _edit_mode: set = set()
+_TTL = 86400  # 24h — pending approvals expire if not acted on
 
 TOOLS = [
     {
@@ -98,6 +101,18 @@ TOOLS = [
 ]
 
 
+def _get_redis():
+    try:
+        url = os.environ.get("UPSTASH_REDIS_URL")
+        token = os.environ.get("UPSTASH_REDIS_TOKEN")
+        if url and token:
+            from upstash_redis import Redis
+            return Redis(url=url, token=token)
+    except Exception:
+        pass
+    return None
+
+
 def handle(name: str, inputs: dict, user_id: str = "default"):
     if name == "get_emails":
         return get_unread_emails(inputs.get("max_results", 10), inputs.get("since_minutes"))
@@ -107,7 +122,7 @@ def handle(name: str, inputs: dict, user_id: str = "default"):
         return get_email_body(inputs["message_id"])
     if name == "stage_email_reply":
         details = get_email_details(inputs["message_id"])
-        _pending_replies[user_id] = {
+        pending = {
             "thread_id": details["thread_id"],
             "to": details["to"],
             "subject": details["subject"],
@@ -115,35 +130,86 @@ def handle(name: str, inputs: dict, user_id: str = "default"):
             "references": details["references"],
             "draft": inputs["draft_body"],
         }
+        r = _get_redis()
+        if r:
+            try:
+                r.set(f"icarus:pending_reply:{user_id}", json.dumps(pending), ex=_TTL)
+            except Exception as e:
+                logging.warning(f"[EMAIL] Redis set failed: {e}")
+                _pending_replies[user_id] = pending
+        else:
+            _pending_replies[user_id] = pending
         return f"Reply to {details['to']} staged for approval."
     return None
 
 
 def get_pending_reply(user_id: str) -> dict | None:
+    r = _get_redis()
+    if r:
+        try:
+            data = r.get(f"icarus:pending_reply:{user_id}")
+            if data:
+                return json.loads(data)
+            return None
+        except Exception as e:
+            logging.warning(f"[EMAIL] Redis get failed: {e}")
     return _pending_replies.get(user_id)
 
 
 def clear_pending_reply(user_id: str):
+    r = _get_redis()
+    if r:
+        try:
+            r.delete(f"icarus:pending_reply:{user_id}")
+            r.delete(f"icarus:edit_mode:{user_id}")
+        except Exception as e:
+            logging.warning(f"[EMAIL] Redis delete failed: {e}")
     _pending_replies.pop(user_id, None)
     _edit_mode.discard(user_id)
 
 
 def set_edit_mode(user_id: str):
+    r = _get_redis()
+    if r:
+        try:
+            r.set(f"icarus:edit_mode:{user_id}", "1", ex=_TTL)
+            return
+        except Exception as e:
+            logging.warning(f"[EMAIL] Redis set_edit_mode failed: {e}")
     _edit_mode.add(user_id)
 
 
 def is_edit_mode(user_id: str) -> bool:
+    r = _get_redis()
+    if r:
+        try:
+            return bool(r.get(f"icarus:edit_mode:{user_id}"))
+        except Exception as e:
+            logging.warning(f"[EMAIL] Redis is_edit_mode failed: {e}")
     return user_id in _edit_mode
 
 
 def update_pending_draft(user_id: str, new_draft: str):
-    if user_id in _pending_replies:
-        _pending_replies[user_id]["draft"] = new_draft
-    _edit_mode.discard(user_id)
+    pending = get_pending_reply(user_id)
+    if pending:
+        pending["draft"] = new_draft
+        r = _get_redis()
+        if r:
+            try:
+                r.set(f"icarus:pending_reply:{user_id}", json.dumps(pending), ex=_TTL)
+                r.delete(f"icarus:edit_mode:{user_id}")
+            except Exception as e:
+                logging.warning(f"[EMAIL] Redis update_draft failed: {e}")
+                _pending_replies[user_id] = pending
+                _edit_mode.discard(user_id)
+        else:
+            _pending_replies[user_id] = pending
+            _edit_mode.discard(user_id)
 
 
 def confirm_send_reply(user_id: str) -> str:
-    pending = _pending_replies.pop(user_id, None)
+    pending = get_pending_reply(user_id)
+    clear_pending_reply(user_id)
     if not pending:
         return "No pending reply found."
     try:

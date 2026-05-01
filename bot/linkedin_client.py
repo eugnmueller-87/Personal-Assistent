@@ -1,18 +1,31 @@
 import os
 import re
+import logging
 import requests
 
 _ACCESS_TOKEN = None
 _pending_posts: dict = {}
+_TTL = 86400  # 24h — pending approvals expire if not acted on
 
 # Add LinkedIn URNs for people or companies you mention frequently.
 # Format: lowercase name → LinkedIn URN
-# To find a URN: go to the LinkedIn page, click "More" → "Copy link",
-# or view page source and search for "organizationUrn" or "fsd_company".
-# Example: linkedin.com/company/ironhack → find the numeric ID in page source.
+# To find a URN: go to their LinkedIn page, view page source and search for
+# "organizationUrn" or "fsd_company". The numeric ID appears in the URL.
 KNOWN_MENTIONS: dict = {
     "ironhack": "urn:li:organization:3297892",
 }
+
+
+def _get_redis():
+    try:
+        url = os.environ.get("UPSTASH_REDIS_URL")
+        token = os.environ.get("UPSTASH_REDIS_TOKEN")
+        if url and token:
+            from upstash_redis import Redis
+            return Redis(url=url, token=token)
+    except Exception:
+        pass
+    return None
 
 
 def _get_token() -> str:
@@ -70,24 +83,53 @@ def _publish(text: str) -> str:
 
 
 def stage_linkedin_post(user_id: str, text: str) -> str:
-    _pending_posts[user_id] = text
+    r = _get_redis()
+    if r:
+        try:
+            r.set(f"icarus:pending_post:{user_id}", text, ex=_TTL)
+        except Exception as e:
+            logging.warning(f"[LINKEDIN] Redis stage failed: {e}")
+            _pending_posts[user_id] = text
+    else:
+        _pending_posts[user_id] = text
     return f"LINKEDIN_STAGED:{text}"
 
 
 def get_pending_post(user_id: str) -> str | None:
+    r = _get_redis()
+    if r:
+        try:
+            return r.get(f"icarus:pending_post:{user_id}")
+        except Exception as e:
+            logging.warning(f"[LINKEDIN] Redis get failed: {e}")
     return _pending_posts.get(user_id)
 
 
 def clear_pending_post(user_id: str):
+    r = _get_redis()
+    if r:
+        try:
+            r.delete(f"icarus:pending_post:{user_id}")
+        except Exception as e:
+            logging.warning(f"[LINKEDIN] Redis delete failed: {e}")
     _pending_posts.pop(user_id, None)
 
 
 def confirm_post(user_id: str) -> str:
-    text = _pending_posts.pop(user_id, None)
+    text = get_pending_post(user_id)
+    clear_pending_post(user_id)
     if not text:
         return "No pending post found."
     return _publish(text)
 
 
 def update_pending_post(user_id: str, text: str):
-    _pending_posts[user_id] = text
+    r = _get_redis()
+    if r:
+        try:
+            r.set(f"icarus:pending_post:{user_id}", text, ex=_TTL)
+        except Exception as e:
+            logging.warning(f"[LINKEDIN] Redis update failed: {e}")
+            _pending_posts[user_id] = text
+    else:
+        _pending_posts[user_id] = text
