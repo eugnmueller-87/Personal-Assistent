@@ -132,7 +132,13 @@ def get_recent_emails_with_ids(since_minutes=20):
     return "\n".join(lines), msg_ids
 
 
-def create_calendar_event(summary: str, date: str, start_time: str = None, end_time: str = None) -> str:
+def create_calendar_event(
+    summary: str,
+    date: str,
+    start_time: str = None,
+    end_time: str = None,
+    recurrence: str = None,
+) -> str:
     creds = get_creds()
     service = build("calendar", "v3", credentials=creds)
 
@@ -152,8 +158,44 @@ def create_calendar_event(summary: str, date: str, start_time: str = None, end_t
             "end": {"date": date},
         }
 
+    if recurrence:
+        event["recurrence"] = [recurrence]
+
     result = service.events().insert(calendarId="primary", body=event).execute()
-    return f"Created: {result.get('summary')} on {date}"
+    return f"Created: {result.get('summary')} on {date}" + (f" (recurring)" if recurrence else "")
+
+
+def delete_calendar_event(event_id: str) -> str:
+    creds = get_creds()
+    service = build("calendar", "v3", credentials=creds)
+    service.events().delete(calendarId="primary", eventId=event_id).execute()
+    return f"Deleted event {event_id}."
+
+
+def find_calendar_events(query: str, date: str = None) -> str:
+    creds = get_creds()
+    service = build("calendar", "v3", credentials=creds)
+    now = datetime.utcnow().isoformat() + "Z"
+    params = {
+        "calendarId": "primary",
+        "q": query,
+        "timeMin": now,
+        "maxResults": 10,
+        "singleEvents": True,
+        "orderBy": "startTime",
+    }
+    if date:
+        params["timeMin"] = f"{date}T00:00:00Z"
+        params["timeMax"] = f"{date}T23:59:59Z"
+    result = service.events().list(**params).execute()
+    events = result.get("items", [])
+    if not events:
+        return "No matching events found."
+    lines = []
+    for e in events:
+        start = e["start"].get("dateTime", e["start"].get("date", ""))
+        lines.append(f"[ID:{e['id']}] {e.get('summary','(no title)')} — {start}")
+    return "\n".join(lines)
 
 
 def get_unread_emails(max_results=10, since_minutes=None):
