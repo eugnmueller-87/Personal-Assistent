@@ -11,7 +11,7 @@ _pending_posts: dict = {}
 # or view page source and search for "organizationUrn" or "fsd_company".
 # Example: linkedin.com/company/ironhack → find the numeric ID in page source.
 KNOWN_MENTIONS: dict = {
-    # "ironhack": "urn:li:organization:REPLACE_WITH_IRONHACK_ID",
+    "ironhack": "urn:li:organization:3297892",
 }
 
 
