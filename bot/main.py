@@ -14,7 +14,8 @@ from github_client import get_open_issues, get_roadmap, create_issue
 from claude_router import route, route_image, compose_morning_brief, is_email_urgent
 from skills.email import get_pending_reply, clear_pending_reply, confirm_send_reply, set_edit_mode, is_edit_mode, update_pending_draft
 from linkedin_client import get_pending_post, clear_pending_post, confirm_post, update_pending_post
-from auto_debug import handle_error, check_pending_fix
+from auto_debug import handle_error
+from audit_log import log_event, get_recent_events
 
 BERLIN = ZoneInfo("Europe/Berlin")
 _alerted_email_ids: set = set()
@@ -272,6 +273,7 @@ async def handle_reply_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     if query.data == "reply_send":
         result = confirm_send_reply(user_id)
+        log_event("email_reply_sent", result[:100])
         await query.message.reply_text(f"✅ {result}")
     elif query.data == "reply_edit":
         set_edit_mode(user_id)
@@ -281,6 +283,7 @@ async def handle_reply_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await query.message.reply_text("Reply cancelled.")
     elif query.data == "linkedin_post":
         result = confirm_post(user_id)
+        log_event("linkedin_posted", result[:100])
         await query.message.reply_text(f"✅ {result}")
     elif query.data == "linkedin_edit":
         await query.message.reply_text("Send me the updated post text:")
@@ -299,9 +302,11 @@ async def morning_briefing(context):
             chat_id=os.environ["TELEGRAM_CHAT_ID"],
             text=f"☀️ Morning brief\n\n{brief}",
         )
+        log_event("morning_briefing", "sent ok")
     except Exception as e:
         import traceback as _tb
         logging.error(f"[ICARUS] morning_briefing failed: {e}")
+        log_event("morning_briefing_failed", str(e)[:100])
         asyncio.create_task(handle_error(e, _tb.format_exc()))
 
 
@@ -326,17 +331,20 @@ async def check_new_emails(context):
         asyncio.create_task(handle_error(e, _tb.format_exc()))
 
 
-async def post_init(app: Application):
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if chat_id:
-        await check_pending_fix(app.bot, chat_id)
+async def audit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    events = get_recent_events(20)
+    if not events:
+        await update.message.reply_text("No audit events recorded yet.")
+        return
+    lines = [f"[{e['ts']}] {e['type']}: {e['detail']}" for e in events]
+    await update.message.reply_text("Audit log (last 20):\n\n" + "\n".join(lines))
 
 
 def main():
     threading.Thread(target=_start_health_server, daemon=True).start()
 
     token = os.environ["TELEGRAM_BOT_TOKEN"]
-    app = Application.builder().token(token).post_init(post_init).build()
+    app = Application.builder().token(token).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("calendar", calendar))
@@ -345,6 +353,7 @@ def main():
     app.add_handler(CommandHandler("summary", summary))
     app.add_handler(CommandHandler("roadmap", roadmap))
     app.add_handler(CommandHandler("task", task))
+    app.add_handler(CommandHandler("audit", audit))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

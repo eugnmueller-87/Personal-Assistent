@@ -43,5 +43,7 @@ ORG-EUGEN/
 | Web search | Tavily API | Live |
 | Google Maps | Places API + Directions API | Live |
 | Persistent memory | Upstash Redis | Live |
+| Health monitoring | GitHub Actions cron + `/health` endpoint — Telegram alert if bot is down | Live |
+| Self-healing | Auto-debug: exception → Claude fix → GitHub commit → Railway redeploy | Live |
 | Automation | n8n / Make.com | Planned |
 | Whiteboard | Excalidraw / Miro | Planned |

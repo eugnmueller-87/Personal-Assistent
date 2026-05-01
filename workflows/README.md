@@ -29,3 +29,5 @@ Documented processes and automations. Each workflow describes a repeatable seque
 |----------|---------|-----------|
 | Weekly Review | Every Monday | No (planned) |
 | Task Capture | Ad hoc | No (planned) |
+| ICARUS Health Check | Every 10 min via GitHub Actions | Yes — pings `/health`, alerts Telegram on failure |
+| ICARUS Self-Healing | On exception in any message or scheduled job | Yes — Claude fixes code, commits to GitHub, Railway redeploys |

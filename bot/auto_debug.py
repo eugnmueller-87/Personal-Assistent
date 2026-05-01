@@ -5,8 +5,9 @@ import asyncio
 import logging
 import requests
 import anthropic
+from datetime import datetime
+from audit_log import log_event
 
-_REDIS_KEY = "icarus:pending_fix"
 _MAX_ATTEMPTS = 2
 _fix_attempts: dict = {}
 
@@ -24,18 +25,6 @@ def _notify(message: str):
         logging.warning(f"[AUTO-DEBUG] Telegram notify failed: {e}")
 
 
-def _get_redis():
-    try:
-        url = os.environ.get("UPSTASH_REDIS_URL")
-        token = os.environ.get("UPSTASH_REDIS_TOKEN")
-        if url and token:
-            from upstash_redis import Redis
-            return Redis(url=url, token=token)
-    except Exception:
-        pass
-    return None
-
-
 def _get_file(path: str):
     repo = os.environ.get("RAILWAY_REPO", "")
     token = os.environ.get("GITHUB_TOKEN", "")
@@ -49,23 +38,64 @@ def _get_file(path: str):
     return base64.b64decode(data["content"]).decode("utf-8"), data["sha"]
 
 
-def _commit_fix(path: str, content: str, sha: str, summary: str) -> bool:
+def _create_pr(path: str, content: str, sha: str, summary: str) -> str | None:
+    """Commits fix to a new branch and opens a PR. Returns PR URL or None."""
     repo = os.environ.get("RAILWAY_REPO", "")
     token = os.environ.get("GITHUB_TOKEN", "")
-    if not repo:
-        return False
-    url = f"https://api.github.com/repos/{repo}/contents/{path}"
-    body = {
-        "message": f"Auto-fix: {summary[:72]}",
-        "content": base64.b64encode(content.encode()).decode(),
-        "sha": sha,
-    }
-    r = requests.put(url, json=body, headers={"Authorization": f"token {token}"}, timeout=15)
-    return r.status_code in (200, 201)
+    if not repo or not token:
+        return None
+    headers = {"Authorization": f"token {token}"}
+    base_url = f"https://api.github.com/repos/{repo}"
+
+    r = requests.get(f"{base_url}/git/refs/heads/main", headers=headers, timeout=10)
+    if r.status_code != 200:
+        return None
+    main_sha = r.json()["object"]["sha"]
+
+    branch = f"auto-fix/{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
+    r = requests.post(
+        f"{base_url}/git/refs",
+        headers=headers,
+        json={"ref": f"refs/heads/{branch}", "sha": main_sha},
+        timeout=10,
+    )
+    if r.status_code not in (200, 201):
+        return None
+
+    r = requests.put(
+        f"{base_url}/contents/{path}",
+        headers=headers,
+        json={
+            "message": f"Auto-fix: {summary[:72]}",
+            "content": base64.b64encode(content.encode()).decode(),
+            "sha": sha,
+            "branch": branch,
+        },
+        timeout=15,
+    )
+    if r.status_code not in (200, 201):
+        return None
+
+    r = requests.post(
+        f"{base_url}/pulls",
+        headers=headers,
+        json={
+            "title": f"Auto-fix: {summary[:72]}",
+            "body": (
+                f"Automated fix proposal for:\n\n```\n{summary}\n```\n\n"
+                "**Review before merging.** Merging triggers a Railway redeploy."
+            ),
+            "head": branch,
+            "base": "main",
+        },
+        timeout=10,
+    )
+    if r.status_code not in (200, 201):
+        return None
+    return r.json().get("html_url")
 
 
 def _extract_file_path(tb_str: str) -> str | None:
-    # Match paths like /app/bot/claude_router.py or /app/bot/skills/email.py
     matches = re.findall(r'/bot/([^"]+\.py)', tb_str)
     if matches:
         return f"bot/{matches[-1]}"
@@ -100,6 +130,7 @@ async def handle_error(exc: Exception, tb_str: str):
     file_path = _extract_file_path(tb_str)
     if not file_path:
         _notify(f"ICARUS error (unknown file — manual fix needed):\n{error_summary}")
+        log_event("error_unhandled", error_summary)
         return
 
     attempts = _fix_attempts.get(file_path, 0)
@@ -108,10 +139,12 @@ async def handle_error(exc: Exception, tb_str: str):
             f"ICARUS: auto-fix exhausted for {file_path} ({_MAX_ATTEMPTS} attempts). "
             f"Manual fix needed.\n\n{error_summary}"
         )
+        log_event("auto_fix_exhausted", f"{file_path}: {error_summary}")
         return
     _fix_attempts[file_path] = attempts + 1
 
-    _notify(f"ICARUS error in {file_path}. Analyzing and fixing...\n\n{error_summary}")
+    _notify(f"ICARUS error in {file_path}. Analyzing...\n\n{error_summary}")
+    log_event("error_caught", f"{file_path}: {error_summary}")
 
     try:
         file_content, sha = await asyncio.to_thread(_get_file, file_path)
@@ -120,7 +153,8 @@ async def handle_error(exc: Exception, tb_str: str):
         return
 
     if not file_content:
-        _notify(f"Auto-fix failed: {file_path} not found in {RAILWAY_REPO}.")
+        repo = os.environ.get("RAILWAY_REPO", "unknown repo")
+        _notify(f"Auto-fix failed: {file_path} not found in {repo}.")
         return
 
     try:
@@ -134,36 +168,14 @@ async def handle_error(exc: Exception, tb_str: str):
         return
 
     try:
-        committed = await asyncio.to_thread(_commit_fix, file_path, fixed, sha, error_summary)
+        pr_url = await asyncio.to_thread(_create_pr, file_path, fixed, sha, error_summary)
     except Exception as e:
-        _notify(f"Auto-fix failed: GitHub commit error: {e}")
+        _notify(f"Auto-fix failed: PR creation error: {e}")
         return
 
-    if not committed:
-        _notify(f"Auto-fix failed: couldn't push fix to GitHub ({file_path}).")
+    if not pr_url:
+        _notify(f"Auto-fix failed: couldn't open PR for {file_path}.")
         return
 
-    r = _get_redis()
-    if r:
-        try:
-            r.set(_REDIS_KEY, f"{file_path}: {error_summary[:120]}", ex=600)
-        except Exception:
-            pass
-
-    _notify(f"Fix committed to {file_path}. Railway redeploying (~90s).")
-
-
-async def check_pending_fix(bot, chat_id: str):
-    r = _get_redis()
-    if not r:
-        return
-    try:
-        pending = r.get(_REDIS_KEY)
-        if pending:
-            r.delete(_REDIS_KEY)
-            await bot.send_message(
-                chat_id=chat_id,
-                text=f"ICARUS back online after auto-fix.\nFixed: {pending}",
-            )
-    except Exception as e:
-        logging.warning(f"[AUTO-DEBUG] Startup check failed: {e}")
+    log_event("auto_fix_pr", f"{file_path}: {error_summary[:100]}")
+    _notify(f"Fix PR ready for {file_path}. Review and merge to deploy:\n{pr_url}")

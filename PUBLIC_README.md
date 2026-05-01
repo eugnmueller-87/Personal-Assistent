@@ -27,6 +27,8 @@ A self-hosted personal assistant that lives in Telegram. Powered by Claude AI. R
 | Roadmap reader | Read any project markdown from repo |
 | Multi-model routing | Haiku for simple, Sonnet for complex (~€4/month) |
 | Persistent memory | Upstash Redis — survives restarts |
+| Health monitoring | GitHub Actions pings `/health` every 10 min — Telegram alert if down |
+| Self-healing | Exceptions auto-fix: Claude reads the broken file, commits a fix, Railway redeploys |
 
 ### Commands
 | Command | What it does |
@@ -63,8 +65,9 @@ A self-hosted personal assistant that lives in Telegram. Powered by Claude AI. R
 | Maps | Google Places API + Directions API |
 | Tasks | GitHub Issues API |
 | Memory | Upstash Redis (free tier) |
-| Hosting | Railway (free tier) |
+| Hosting | Railway (free tier, web process with public URL) |
 | Scheduling | APScheduler via job_queue |
+| Health check | GitHub Actions cron (every 10 min) |
 
 ---
 

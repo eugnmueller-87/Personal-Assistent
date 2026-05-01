@@ -3,6 +3,9 @@
 .env.local
 credentials/
 
+# Private ops docs — stay local only
+HANDOVER.md
+
 # OS
 .DS_Store
 Thumbs.db
