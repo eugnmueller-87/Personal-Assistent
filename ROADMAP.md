@@ -15,7 +15,7 @@ ICARUS Telegram (the only interface you need)
      │
      ├── Personal ops        — calendar, email, tasks, memory (live)
      ├── Spend Lens agents   — trigger analyses, surface insights (planned)
-     ├── Marketing agent     — draft + post LinkedIn updates (planned)
+     ├── Marketing agent     — draft + post LinkedIn updates (live)
      └── Future agents       — plug in as tools, report back here
 ```
 
@@ -33,7 +33,7 @@ ICARUS Telegram (the only interface you need)
 
 ## Phase 2 — ICARUS Personal Ops ✅
 
-- [x] Telegram bot — live, always-on (Railway free tier)
+- [x] Telegram bot — live, always-on (Railway Hobby plan, $5/month)
 - [x] Google Calendar — read + write (natural language, voice)
 - [x] Gmail — important-only filter, time-based queries, proactive alerts every 15 min
 - [x] GitHub Issues — read, create, roadmap reader
@@ -70,27 +70,27 @@ ICARUS Telegram (the only interface you need)
 - [ ] Surface key procurement insights, compliance flags, and supplier alerts in Telegram
 - [ ] ICARUS can create Spend Lens tasks from voice ("flag supplier X for review")
 
-### Marketing agent
-- [ ] LinkedIn post agent — Claude drafts posts about project milestones, updates, launches
-- [ ] ICARUS triggers from Telegram ("post about ICARUS calendar write feature")
-- [ ] Claude generates post → ICARUS previews in Telegram → confirm to publish
+### Marketing agent ✅
+- [x] LinkedIn post agent — Claude drafts posts about project milestones, updates, launches
+- [x] ICARUS triggers from Telegram ("post about ICARUS calendar write feature")
+- [x] Claude generates post → ICARUS previews in Telegram → confirm to publish
 - [ ] Auto-post on major milestones (configurable)
 - [ ] Post history tracked in GitHub Issues
 
-### Dev & ops — Sandbox First (P0 before Spend Lens)
+### Dev & ops — Sandbox ✅
 
 **Principle:** never test on the bot that manages real calendar, email, and business data.
 
-- [ ] **Sandbox setup (~1 hour, zero prod risk):**
-  1. Create `dev` branch from current `main` — no code changes yet
-  2. Create second Railway service pointing to `dev` branch — prod service untouched
-  3. Copy all env vars to dev service — new `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` only
-  4. Create `@IcarusORG_dev_bot` via BotFather — separate bot, separate token
-  5. Add `dev:` Redis key prefix on dev branch only — prod keys never touched
-  6. Verify dev bot works end-to-end — prod runs the whole time, never paused
-- [ ] **Workflow going forward:** develop on `dev` → test on `@IcarusORG_dev_bot` → merge to `main` → prod auto-deploys
+- [x] **Sandbox setup complete:**
+  1. `dev` branch created from `main`
+  2. Second Railway project (`icarus-dev`) pointing to `dev` branch
+  3. All env vars copied — separate `TELEGRAM_BOT_TOKEN` for dev bot
+  4. `@IcarusORG_dev_bot` created via BotFather — separate token
+  5. Redis key namespace isolation via `redis_ns.py` — dev uses `icarus:dev:*`, prod uses `icarus:*`
+  6. Dev bot verified end-to-end — prod never paused
+- [x] **Workflow:** develop on `dev` → test on `@IcarusORG_dev_bot` → merge to `main` → prod auto-deploys
 - [ ] **CI update:** run tests on `dev` branch as well as `main`
-- [ ] **Railway Hobby plan** ($5/month) — free tier only covers 500h/month; two always-on services need Hobby
+- [x] **Railway Hobby plan** ($5/month) — both services running on Hobby, EU West (Amsterdam)
 
 ---
 
@@ -135,7 +135,7 @@ ICARUS Telegram (the only interface you need)
 
 ---
 
-## ICARUS — Current Capabilities (as of 2026-04-30)
+## ICARUS — Current Capabilities (as of 2026-05-02)
 
 | Capability | Status |
 |---|---|
@@ -158,11 +158,18 @@ ICARUS Telegram (the only interface you need)
 | Morning briefing 06:00 Berlin | Live |
 | Proactive email alerts (15 min polling) | Live |
 | Persistent memory (Upstash Redis) | Live |
+| LinkedIn marketing agent — draft, preview, post from Telegram | Live |
+| Sandbox environment — icarus-dev on Railway, Redis isolated | Live |
+| Update/close GitHub issues | Planned (next) |
+| Update existing calendar events | Planned (next) |
+| Calendar focus blocking | Planned (next) |
+| Personal notes — conversational, Redis-backed | Planned (next) |
+| Google Drive access | Planned (next) |
+| One-off and recurring reminders | Planned (next) |
 | Voice output — ICARUS talks back (TTS) | Planned |
 | Smarter proactivity — meeting reminders, follow-up nudges | Planned |
 | Weekly AI summary | Planned |
 | Spend Lens agent connection | Planned |
-| LinkedIn marketing agent | Planned |
 | PWA — installable web app | Planned (Phase 4) |
 | Wake word — "Hey ICARUS" | Planned (Phase 4) |
 | Desktop app | Planned (Phase 4) |

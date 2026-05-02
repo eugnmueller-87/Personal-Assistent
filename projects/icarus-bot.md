@@ -12,7 +12,7 @@ ICARUS Telegram (the only interface you need)
      │
      ├── Personal ops        — calendar, email, tasks, memory (live)
      ├── Spend Lens agents   — trigger analyses, surface insights (planned)
-     ├── Marketing agent     — draft + post LinkedIn updates (planned)
+     ├── Marketing agent     — draft + post LinkedIn updates (live)
      └── Future agents       — plug in as tools, report back here
 ```
 
@@ -22,7 +22,7 @@ ICARUS Telegram (the only interface you need)
 
 | Capability | Detail |
 |---|---|
-| Commands | /calendar, /emails, /issues, /summary, /roadmap, /task |
+| Commands | /calendar, /emails, /issues, /summary, /roadmap, /task, /audit |
 | Natural language — text | Claude tool-use agent |
 | Natural language — voice | Whisper transcription |
 | Image / document analysis | Claude multimodal — invoices, contracts, whiteboards |
@@ -40,8 +40,11 @@ ICARUS Telegram (the only interface you need)
 | Google Maps | Places + Directions — find places, hours, ratings, travel time |
 | Shopping list | Add/remove/clear items conversationally — persisted in Redis |
 | Expense tracker | Log by text or receipt photo — weekly/monthly summary by store |
+| LinkedIn posts | Draft, preview, confirm/edit/cancel approval flow from Telegram |
+| Audit log | /audit shows last 20 system events |
 | Multi-model routing | Fast model for simple, full model for complex |
 | Persistent memory | Survives restarts and redeploys |
+| Sandbox environment | icarus-dev on Railway — separate bot token, Redis namespace isolated |
 
 ---
 
@@ -92,6 +95,6 @@ ICARUS Telegram (the only interface you need)
 | Calendar | Google Calendar API |
 | Email | Gmail API |
 | Tasks | GitHub Issues API |
-| Memory | Redis |
-| Hosting | Railway |
+| Memory | Upstash Redis (EU West) |
+| Hosting | Railway Hobby ($5/month) — prod + dev, EU West (Amsterdam) |
 | Scheduling | APScheduler via job_queue |
