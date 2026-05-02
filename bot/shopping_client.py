@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from redis_ns import NS
 
 TIMEZONE = "Europe/Berlin"
 
@@ -18,7 +19,7 @@ def get_shopping_list(user_id: str) -> list:
     if not r:
         return []
     try:
-        data = r.get(f"icarus:shopping:{user_id}")
+        data = r.get(f"{NS}:shopping:{user_id}")
         return json.loads(data) if data else []
     except Exception as e:
         logging.warning(f"[ICARUS] shopping get failed: {e}")
@@ -36,7 +37,7 @@ def add_items(user_id: str, items: list) -> list:
     r = _redis()
     if r:
         try:
-            r.set(f"icarus:shopping:{user_id}", json.dumps(current))
+            r.set(f"{NS}:shopping:{user_id}", json.dumps(current))
         except Exception as e:
             logging.warning(f"[ICARUS] shopping save failed: {e}")
     return current
@@ -48,7 +49,7 @@ def remove_item(user_id: str, item: str) -> list:
     r = _redis()
     if r:
         try:
-            r.set(f"icarus:shopping:{user_id}", json.dumps(updated))
+            r.set(f"{NS}:shopping:{user_id}", json.dumps(updated))
         except Exception as e:
             logging.warning(f"[ICARUS] shopping remove failed: {e}")
     return updated
@@ -58,7 +59,7 @@ def clear_shopping_list(user_id: str):
     r = _redis()
     if r:
         try:
-            r.delete(f"icarus:shopping:{user_id}")
+            r.delete(f"{NS}:shopping:{user_id}")
         except Exception as e:
             logging.warning(f"[ICARUS] shopping clear failed: {e}")
 
@@ -92,7 +93,7 @@ def log_expense(user_id: str, amount: float, store: str, items: str = "", curren
             "store": store,
             "items": items,
         }
-        key = f"icarus:expenses:{user_id}"
+        key = f"{NS}:expenses:{user_id}"
         data = r.get(key)
         expenses = json.loads(data) if data else []
         expenses.append(entry)
@@ -109,7 +110,7 @@ def get_expenses(user_id: str, period: str = "month") -> str:
     if not r:
         return "Storage unavailable."
     try:
-        data = r.get(f"icarus:expenses:{user_id}")
+        data = r.get(f"{NS}:expenses:{user_id}")
         if not data:
             return "No expenses logged yet."
         expenses = json.loads(data)

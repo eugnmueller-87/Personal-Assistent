@@ -2,8 +2,9 @@ import os
 import json
 import logging
 from datetime import datetime, timezone
+from redis_ns import NS
 
-_REDIS_KEY = "icarus:audit_log"
+_REDIS_KEY = f"{NS}:audit_log"
 _MAX_ENTRIES = 100
 
 

@@ -6,6 +6,7 @@ from datetime import datetime
 from collections import defaultdict
 import anthropic
 from skills import get_all_tools, call_tool
+from redis_ns import NS
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -61,7 +62,7 @@ def _load_history(user_id: str):
     if not r:
         return
     try:
-        data = r.get(f"icarus:history:{user_id}")
+        data = r.get(f"{NS}:history:{user_id}")
         if data:
             _history[user_id] = json.loads(data)
     except Exception as e:
@@ -73,7 +74,7 @@ def _save_history(user_id: str):
     if not r:
         return
     try:
-        r.set(f"icarus:history:{user_id}", json.dumps(_clean_for_storage(_history[user_id])))
+        r.set(f"{NS}:history:{user_id}", json.dumps(_clean_for_storage(_history[user_id])))
     except Exception as e:
         logging.warning(f"[ICARUS] Redis save failed: {e}")
 

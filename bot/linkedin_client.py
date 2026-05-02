@@ -2,6 +2,7 @@ import os
 import re
 import logging
 import requests
+from redis_ns import NS
 
 _ACCESS_TOKEN = None
 _pending_posts: dict = {}
@@ -86,7 +87,7 @@ def stage_linkedin_post(user_id: str, text: str) -> str:
     r = _get_redis()
     if r:
         try:
-            r.set(f"icarus:pending_post:{user_id}", text, ex=_TTL)
+            r.set(f"{NS}:pending_post:{user_id}", text, ex=_TTL)
         except Exception as e:
             logging.warning(f"[LINKEDIN] Redis stage failed: {e}")
             _pending_posts[user_id] = text
@@ -99,7 +100,7 @@ def get_pending_post(user_id: str) -> str | None:
     r = _get_redis()
     if r:
         try:
-            return r.get(f"icarus:pending_post:{user_id}")
+            return r.get(f"{NS}:pending_post:{user_id}")
         except Exception as e:
             logging.warning(f"[LINKEDIN] Redis get failed: {e}")
     return _pending_posts.get(user_id)
@@ -109,7 +110,7 @@ def clear_pending_post(user_id: str):
     r = _get_redis()
     if r:
         try:
-            r.delete(f"icarus:pending_post:{user_id}")
+            r.delete(f"{NS}:pending_post:{user_id}")
         except Exception as e:
             logging.warning(f"[LINKEDIN] Redis delete failed: {e}")
     _pending_posts.pop(user_id, None)
@@ -127,7 +128,7 @@ def update_pending_post(user_id: str, text: str):
     r = _get_redis()
     if r:
         try:
-            r.set(f"icarus:pending_post:{user_id}", text, ex=_TTL)
+            r.set(f"{NS}:pending_post:{user_id}", text, ex=_TTL)
         except Exception as e:
             logging.warning(f"[LINKEDIN] Redis update failed: {e}")
             _pending_posts[user_id] = text

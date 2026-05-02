@@ -2,6 +2,7 @@ import os
 import json
 import logging
 from google_client import get_unread_emails, search_emails, get_email_body, get_email_details, send_reply
+from redis_ns import NS
 
 _pending_replies: dict = {}
 _edit_mode: set = set()
@@ -133,7 +134,7 @@ def handle(name: str, inputs: dict, user_id: str = "default"):
         r = _get_redis()
         if r:
             try:
-                r.set(f"icarus:pending_reply:{user_id}", json.dumps(pending), ex=_TTL)
+                r.set(f"{NS}:pending_reply:{user_id}", json.dumps(pending), ex=_TTL)
             except Exception as e:
                 logging.warning(f"[EMAIL] Redis set failed: {e}")
                 _pending_replies[user_id] = pending
@@ -147,7 +148,7 @@ def get_pending_reply(user_id: str) -> dict | None:
     r = _get_redis()
     if r:
         try:
-            data = r.get(f"icarus:pending_reply:{user_id}")
+            data = r.get(f"{NS}:pending_reply:{user_id}")
             if data:
                 return json.loads(data)
             return None
@@ -160,8 +161,8 @@ def clear_pending_reply(user_id: str):
     r = _get_redis()
     if r:
         try:
-            r.delete(f"icarus:pending_reply:{user_id}")
-            r.delete(f"icarus:edit_mode:{user_id}")
+            r.delete(f"{NS}:pending_reply:{user_id}")
+            r.delete(f"{NS}:edit_mode:{user_id}")
         except Exception as e:
             logging.warning(f"[EMAIL] Redis delete failed: {e}")
     _pending_replies.pop(user_id, None)
@@ -172,7 +173,7 @@ def set_edit_mode(user_id: str):
     r = _get_redis()
     if r:
         try:
-            r.set(f"icarus:edit_mode:{user_id}", "1", ex=_TTL)
+            r.set(f"{NS}:edit_mode:{user_id}", "1", ex=_TTL)
             return
         except Exception as e:
             logging.warning(f"[EMAIL] Redis set_edit_mode failed: {e}")
@@ -183,7 +184,7 @@ def is_edit_mode(user_id: str) -> bool:
     r = _get_redis()
     if r:
         try:
-            return bool(r.get(f"icarus:edit_mode:{user_id}"))
+            return bool(r.get(f"{NS}:edit_mode:{user_id}"))
         except Exception as e:
             logging.warning(f"[EMAIL] Redis is_edit_mode failed: {e}")
     return user_id in _edit_mode
@@ -196,8 +197,8 @@ def update_pending_draft(user_id: str, new_draft: str):
         r = _get_redis()
         if r:
             try:
-                r.set(f"icarus:pending_reply:{user_id}", json.dumps(pending), ex=_TTL)
-                r.delete(f"icarus:edit_mode:{user_id}")
+                r.set(f"{NS}:pending_reply:{user_id}", json.dumps(pending), ex=_TTL)
+                r.delete(f"{NS}:edit_mode:{user_id}")
             except Exception as e:
                 logging.warning(f"[EMAIL] Redis update_draft failed: {e}")
                 _pending_replies[user_id] = pending
