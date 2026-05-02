@@ -14,6 +14,7 @@ const typingIndicator = document.getElementById('typing-indicator');
 const msgInput      = document.getElementById('msg-input');
 const btnSend       = document.getElementById('btn-send');
 const btnMic        = document.getElementById('btn-mic');
+const hudMic        = document.getElementById('hud-mic');
 const btnPhoto      = document.getElementById('btn-photo');
 const btnLogout     = document.getElementById('btn-logout');
 const fileInput     = document.getElementById('file-input');
@@ -154,6 +155,7 @@ async function startRecording() {
     mediaRecorder.start();
     isRecording = true;
     btnMic.classList.add('recording');
+    hudMic.classList.add('recording');
     btnMic.title = 'Stop recording';
   } catch {
     addBubble('bot', 'Microphone access denied.');
@@ -166,6 +168,7 @@ function stopRecording() {
     mediaRecorder.stream.getTracks().forEach(t => t.stop());
     isRecording = false;
     btnMic.classList.remove('recording');
+    hudMic.classList.remove('recording');
     btnMic.title = 'Voice message';
   }
 }

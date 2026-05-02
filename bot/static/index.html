@@ -15,13 +15,39 @@
   <!-- PIN Login -->
   <div id="login-screen">
     <div class="login-box">
-      <div class="logo-ring">
-        <svg viewBox="0 0 80 80" fill="none">
-          <circle cx="40" cy="40" r="36" stroke="#4f46e5" stroke-width="1.5" stroke-dasharray="4 4"/>
-          <circle cx="40" cy="40" r="26" stroke="#818cf8" stroke-width="0.8" opacity="0.4"/>
-          <text x="40" y="46" text-anchor="middle" fill="#e2e8f0" font-size="13" font-family="system-ui" letter-spacing="2">ICARUS</text>
+
+      <!-- JARVIS HUD ring -->
+      <div class="hud-wrap">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <!-- Ring 1 — outermost, slow CW -->
+          <g class="g-cw" style="--dur:28s">
+            <circle cx="100" cy="100" r="94" fill="none" stroke="#00d4ff" stroke-width="0.7" stroke-dasharray="3 12" opacity="0.3"/>
+            <circle cx="100" cy="100" r="94" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="160 70 160 201" opacity="0.75" stroke-linecap="round"/>
+          </g>
+          <!-- Ring 2 — CCW -->
+          <g class="g-ccw" style="--dur:20s">
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#00d4ff" stroke-width="0.6" stroke-dasharray="2 7" opacity="0.22"/>
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#00d4ff" stroke-width="2" stroke-dasharray="100 70 50 283" opacity="0.8" stroke-linecap="round"/>
+          </g>
+          <!-- Ring 3 — CW -->
+          <g class="g-cw" style="--dur:14s">
+            <circle cx="100" cy="100" r="66" fill="none" stroke="#00d4ff" stroke-width="0.7" stroke-dasharray="2 9" opacity="0.28"/>
+            <circle cx="100" cy="100" r="66" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="80 335" opacity="0.55" stroke-linecap="round"/>
+          </g>
+          <!-- Ring 4 — CCW, segment pattern -->
+          <g class="g-ccw" style="--dur:9s">
+            <circle cx="100" cy="100" r="52" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="10 6 3 6" opacity="0.45"/>
+          </g>
+          <!-- Inner glow ring -->
+          <circle cx="100" cy="100" r="38" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+          <circle cx="100" cy="100" r="38" fill="#00d4ff" fill-opacity="0.04"/>
+          <!-- Center text -->
+          <text x="100" y="96" text-anchor="middle" fill="#00d4ff" font-size="10" font-family="system-ui" letter-spacing="3.5" font-weight="300" opacity="0.95">ICARUS</text>
+          <line x1="74" y1="102" x2="126" y2="102" stroke="#00d4ff" stroke-width="0.5" opacity="0.3"/>
+          <text x="100" y="112" text-anchor="middle" fill="#00d4ff" font-size="5.5" font-family="system-ui" letter-spacing="2.5" opacity="0.4">ONLINE</text>
         </svg>
       </div>
+
       <p class="login-label">Enter PIN</p>
       <div class="pin-dots" id="pin-dots">
         <span></span><span></span><span></span><span></span>
@@ -63,27 +89,52 @@
     </div>
 
     <footer>
-      <button id="btn-photo" title="Send photo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="5" width="18" height="15" rx="2"/>
-          <circle cx="12" cy="13" r="3"/>
-          <path d="M9 5l1.5-2h3L15 5"/>
-        </svg>
-      </button>
-      <input type="text" id="msg-input" placeholder="Message ICARUS…" autocomplete="off" />
-      <button id="btn-mic" title="Voice message">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="9" y="2" width="6" height="12" rx="3"/>
-          <path d="M5 10a7 7 0 0014 0M12 19v3M9 22h6"/>
-        </svg>
-      </button>
-      <button id="btn-send" title="Send">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="22" y1="2" x2="11" y2="13"/>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
-      </button>
-      <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden" />
+      <!-- HUD mic button -->
+      <div class="footer-mic-row">
+        <div class="hud-mic-wrap" id="hud-mic">
+          <svg class="hud-mic-svg" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+            <!-- Outer ring CW -->
+            <g class="g-cw" style="--dur:20s">
+              <circle cx="45" cy="45" r="43" fill="none" stroke="#00d4ff" stroke-width="0.7" stroke-dasharray="3 10" opacity="0.28"/>
+              <circle cx="45" cy="45" r="43" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="70 30 70 94" opacity="0.7" stroke-linecap="round"/>
+            </g>
+            <!-- Middle ring CCW -->
+            <g class="g-ccw" style="--dur:14s">
+              <circle cx="45" cy="45" r="35" fill="none" stroke="#00d4ff" stroke-width="0.6" stroke-dasharray="2 6" opacity="0.22"/>
+              <circle cx="45" cy="45" r="35" fill="none" stroke="#00d4ff" stroke-width="1.8" stroke-dasharray="50 50 20 100" opacity="0.65" stroke-linecap="round"/>
+            </g>
+            <!-- Inner ring CW -->
+            <g class="g-cw" style="--dur:8s">
+              <circle cx="45" cy="45" r="27" fill="none" stroke="#00d4ff" stroke-width="0.8" stroke-dasharray="2 7" opacity="0.3"/>
+            </g>
+          </svg>
+          <button id="btn-mic" class="hud-mic-btn" title="Voice message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="2" width="6" height="12" rx="3"/>
+              <path d="M5 10a7 7 0 0014 0M12 19v3M9 22h6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Text input row -->
+      <div class="footer-text-row">
+        <button id="btn-photo" title="Send photo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="5" width="18" height="15" rx="2"/>
+            <circle cx="12" cy="13" r="3"/>
+            <path d="M9 5l1.5-2h3L15 5"/>
+          </svg>
+        </button>
+        <input type="text" id="msg-input" placeholder="Message ICARUS…" autocomplete="off" />
+        <button id="btn-send" title="Send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+        <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden" />
+      </div>
     </footer>
   </div>
 
