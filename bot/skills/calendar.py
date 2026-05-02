@@ -33,6 +33,7 @@ TOOLS = [
                 },
                 "location": {"type": "string", "description": "Physical address or room for in-person events."},
                 "add_meet": {"type": "boolean", "description": "Set true to generate a Google Meet link for remote meetings."},
+                "description": {"type": "string", "description": "Notes, agenda, shopping list, or any text to attach to the event body."},
             },
             "required": ["summary", "date"],
         },
@@ -87,6 +88,7 @@ def handle(name: str, inputs: dict, user_id: str = "default"):
             attendees,
             inputs.get("location"),
             inputs.get("add_meet", False),
+            inputs.get("description"),
         )
     if name == "find_calendar_events":
         return find_calendar_events(inputs["query"], inputs.get("date"))

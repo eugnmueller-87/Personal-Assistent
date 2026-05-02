@@ -141,6 +141,7 @@ def create_calendar_event(
     attendees: list = None,
     location: str = None,
     add_meet: bool = False,
+    description: str = None,
 ) -> str:
     import uuid
     creds = get_creds()
@@ -162,6 +163,9 @@ def create_calendar_event(
             "start": {"date": date},
             "end": {"date": end_date},
         }
+
+    if description:
+        event["description"] = description
 
     if recurrence:
         event["recurrence"] = [recurrence]
