@@ -17,6 +17,40 @@ PWA_PIN = os.environ.get("PWA_PIN", "1234")
 USER_ID = "pwa"
 _sessions: set = set()
 
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 900  # 15 minutes
+_fail_counts: dict = {}  # fallback if Redis unavailable
+
+
+def _fail_key(ip: str) -> str:
+    return f"{NS}:pwa:fail:{ip}"
+
+
+def _check_lockout(ip: str):
+    r = _get_redis()
+    key = _fail_key(ip)
+    count = int(r.get(key) or 0) if r else _fail_counts.get(ip, 0)
+    if count >= MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again in 15 minutes.")
+
+
+def _record_failure(ip: str):
+    r = _get_redis()
+    key = _fail_key(ip)
+    if r:
+        r.incr(key)
+        r.expire(key, LOCKOUT_SECONDS)
+    else:
+        _fail_counts[ip] = _fail_counts.get(ip, 0) + 1
+
+
+def _clear_failures(ip: str):
+    r = _get_redis()
+    if r:
+        r.delete(_fail_key(ip))
+    else:
+        _fail_counts.pop(ip, None)
+
 
 def _get_redis():
     try:
@@ -65,9 +99,14 @@ def _auth(request: Request):
 
 @app.post("/api/login")
 async def login(request: Request, response: Response):
+    ip = request.client.host
+    _check_lockout(ip)
     body = await request.json()
     if body.get("pin") != PWA_PIN:
+        _record_failure(ip)
+        logging.warning(f"[PWA] failed login from {ip}")
         raise HTTPException(status_code=401, detail="Wrong PIN")
+    _clear_failures(ip)
     token = _create_session()
     response.set_cookie(
         "pwa_session", token,
