@@ -1,6 +1,20 @@
 # ORG EUGEN
 
-Personal operations system — todos, projects, workflows, and automation.
+Personal operations system — AI assistant, automation, and procurement intelligence.
+
+---
+
+## ICARUS — Live UI
+
+<div align="center">
+  <img src="screenshots/login.png" width="260" alt="ICARUS Login" />
+  &nbsp;&nbsp;
+  <img src="screenshots/chat.png" width="260" alt="ICARUS Chat" />
+</div>
+
+> JARVIS-style PWA — live at [icarusai.de](https://icarusai.de) · PIN auth · voice · photo · installable on mobile
+
+---
 
 ## Structure
 
@@ -36,7 +50,8 @@ ORG-EUGEN/
 |-------|------|--------|
 | Task tracking | GitHub Issues + TODO.md | Live |
 | Weekly review | GitHub Actions (Monday 08:00 UTC) | Live |
-| ICARUS — interactive AI assistant | Telegram bot on Railway Hobby ($5/month) | Live |
+| ICARUS Telegram bot | Railway Hobby ($5/month) — EU West | Live |
+| ICARUS PWA | Hostinger VPS (187.124.14.81) — Docker + nginx + Let's Encrypt | Live |
 | Natural language + voice + images | Claude Sonnet 4.6 + Haiku 4.5 + Whisper | Live |
 | Google Calendar | Google Calendar API (read + write) | Live |
 | Gmail | Gmail API — read, search, full body, reply | Live |
@@ -51,8 +66,8 @@ ORG-EUGEN/
 | Proactive email alerts | Polls every 15 min, AI urgency filter, no spam | Live |
 | Multi-model routing | Haiku for simple, Sonnet for complex — auto-selected | Live |
 | Persistent memory | Upstash Redis (EU West) | Live |
+| HTTPS + SSL | Let's Encrypt via certbot — auto-renews | Live |
 | Sandbox environment | icarus-dev on Railway — dev branch, isolated Redis namespace | Live |
-| PWA — ICARUS web app | JARVIS-style chat UI, PIN auth, voice, photo — installable on mobile | Live (SANDBOX/dev) |
 | Health monitoring | GitHub Actions cron + `/health` endpoint — Telegram alert if bot is down | Live |
 | Self-healing | Exception → fix proposal → human review → redeploy | Live |
 | Automation | n8n / Make.com | Planned |
