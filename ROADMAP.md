@@ -1,4 +1,4 @@
-# ROADMAP — ORG EUGEN
+a# ROADMAP — ORG EUGEN
 
 > Big-picture vision and project trajectory. Updated as we go.
 
@@ -97,15 +97,16 @@ ICARUS Telegram (the only interface you need)
 ## Phase 4 — ICARUS as Standalone App
 **Goal:** ICARUS available outside Telegram — browser, desktop, mobile. Same backend, new interfaces. Build after all active projects are stable.
 
-### PWA (web app installable on phone)
-- [ ] FastAPI backend — `/chat`, `/voice`, `/photo` endpoints wrapping existing `claude_router.py`
-- [ ] Chat UI — single HTML page, installable to home screen via `manifest.json`
-- [ ] Voice recording via browser mic API → Whisper → same routing
-- [ ] Photo upload → same `route_image()` pipeline
-- [ ] PIN/password auth (replaces Telegram `CHAT_ID` guard)
+### PWA (web app installable on phone) ✅ — SANDBOX live on dev
+
+- [x] FastAPI backend — `/chat`, `/voice`, `/photo` endpoints wrapping existing `claude_router.py`
+- [x] Chat UI — single HTML page, installable to home screen via `manifest.json`
+- [x] Voice recording via browser mic API → Whisper → same routing
+- [x] Photo upload → same `route_image()` pipeline
+- [x] PIN/password auth (Redis-backed sessions, 7-day TTL)
+- [x] Deploy to Railway as SANDBOX service in icarus-dev — custom domain configured
 - [ ] Push notifications via Firebase or similar
-- [ ] Deploy to Railway alongside or instead of Telegram bot
-- [ ] **Note:** `claude_router.py`, `google_client.py`, `github_client.py` — zero changes needed
+- [ ] Promote to prod after dev testing complete
 
 ### Desktop app — JARVIS mode
 - [ ] Standalone desktop client (Electron or Tauri wrapping the PWA)
@@ -170,7 +171,7 @@ ICARUS Telegram (the only interface you need)
 | Smarter proactivity — meeting reminders, follow-up nudges | Planned |
 | Weekly AI summary | Planned |
 | Spend Lens agent connection | Planned |
-| PWA — installable web app | Planned (Phase 4) |
+| PWA — JARVIS-style chat UI, PIN auth, text/voice/photo | Live (SANDBOX/dev) |
 | Wake word — "Hey ICARUS" | Planned (Phase 4) |
 | Desktop app | Planned (Phase 4) |
 | Computer awareness + control | Research (Phase 5) |

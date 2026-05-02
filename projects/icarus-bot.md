@@ -45,6 +45,7 @@ ICARUS Telegram (the only interface you need)
 | Multi-model routing | Fast model for simple, full model for complex |
 | Persistent memory | Survives restarts and redeploys |
 | Sandbox environment | icarus-dev on Railway — separate bot token, Redis namespace isolated |
+| PWA — SANDBOX | JARVIS-style browser/mobile chat: text, voice, photo, PIN auth — installable |
 
 ---
 
@@ -98,3 +99,5 @@ ICARUS Telegram (the only interface you need)
 | Memory | Upstash Redis (EU West) |
 | Hosting | Railway Hobby ($5/month) — prod + dev, EU West (Amsterdam) |
 | Scheduling | APScheduler via job_queue |
+| PWA backend | FastAPI + uvicorn (SANDBOX service, icarus-dev) |
+| PWA frontend | Vanilla JS + CSS — dark JARVIS UI, installable via manifest.json |
