@@ -47,6 +47,7 @@ def get_roadmap(project="org-eugen"):
         "spendlens": "projects/spend-lens.md",
         "icarus": "projects/icarus-bot.md",
         "agents": "projects/spend-lens-agents.md",
+        "sandbox": "projects/icarus-sandbox-log.md",
     }
 
     token = os.environ["GITHUB_TOKEN"]
