@@ -16,9 +16,10 @@ jobs:
           echo "status=$STATUS" >> $GITHUB_OUTPUT
           echo "Health check: $STATUS"
 
-      - name: Alert on failure
-        if: steps.ping.outputs.status != '200'
+      - name: Log result
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="ICARUS health check FAILED (HTTP ${{ steps.ping.outputs.status }}). Bot may be down."
+          if [ "${{ steps.ping.outputs.status }}" = "200" ]; then
+            echo "ICARUS is healthy."
+          else
+            echo "ICARUS health check failed (HTTP ${{ steps.ping.outputs.status }}). Check Railway dashboard."
+          fi
