@@ -26,10 +26,27 @@ def _fail_key(ip: str) -> str:
     return f"{NS}:pwa:fail:{ip}"
 
 
+def _redis_get(r, key):
+    try:
+        return r.get(key)
+    except Exception:
+        return None
+
+
+def _redis_exec(r, fn, *args, **kwargs):
+    try:
+        fn(*args, **kwargs)
+    except Exception:
+        pass
+
+
 def _check_lockout(ip: str):
     r = _get_redis()
     key = _fail_key(ip)
-    count = int(r.get(key) or 0) if r else _fail_counts.get(ip, 0)
+    if r:
+        count = int(_redis_get(r, key) or 0)
+    else:
+        count = _fail_counts.get(ip, 0)
     if count >= MAX_ATTEMPTS:
         raise HTTPException(status_code=429, detail="Too many attempts. Try again in 15 minutes.")
 
@@ -38,8 +55,11 @@ def _record_failure(ip: str):
     r = _get_redis()
     key = _fail_key(ip)
     if r:
-        r.incr(key)
-        r.expire(key, LOCKOUT_SECONDS)
+        try:
+            r.incr(key)
+            r.expire(key, LOCKOUT_SECONDS)
+        except Exception:
+            _fail_counts[ip] = _fail_counts.get(ip, 0) + 1
     else:
         _fail_counts[ip] = _fail_counts.get(ip, 0) + 1
 
@@ -47,9 +67,11 @@ def _record_failure(ip: str):
 def _clear_failures(ip: str):
     r = _get_redis()
     if r:
-        r.delete(_fail_key(ip))
-    else:
-        _fail_counts.pop(ip, None)
+        try:
+            r.delete(_fail_key(ip))
+        except Exception:
+            pass
+    _fail_counts.pop(ip, None)
 
 
 def _get_redis():
@@ -69,7 +91,10 @@ def _valid_session(token: str) -> bool:
         return False
     r = _get_redis()
     if r:
-        return bool(r.get(f"{NS}:pwa:session:{token}"))
+        try:
+            return bool(r.get(f"{NS}:pwa:session:{token}"))
+        except Exception:
+            pass
     return token in _sessions
 
 
@@ -77,16 +102,22 @@ def _create_session() -> str:
     token = str(uuid.uuid4())
     r = _get_redis()
     if r:
-        r.set(f"{NS}:pwa:session:{token}", "1", ex=604800)  # 7 days
-    else:
-        _sessions.add(token)
+        try:
+            r.set(f"{NS}:pwa:session:{token}", "1", ex=604800)
+            return token
+        except Exception:
+            pass
+    _sessions.add(token)
     return token
 
 
 def _delete_session(token: str):
     r = _get_redis()
     if r:
-        r.delete(f"{NS}:pwa:session:{token}")
+        try:
+            r.delete(f"{NS}:pwa:session:{token}")
+        except Exception:
+            pass
     _sessions.discard(token)
 
 
