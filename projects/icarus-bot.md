@@ -47,15 +47,35 @@ ICARUS Telegram (the only interface you need)
 
 ## Planned
 
+### Now — low & medium effort (direct to prod)
+
+**Task & Calendar upgrades**
+- [ ] Update/close GitHub issues — edit title, body, state via conversation
+- [ ] Update existing calendar events — modify time, title, location, attendees
+- [ ] Calendar focus blocking — "block 2h tomorrow morning for deep work"
+
+**Personal knowledge**
+- [ ] Personal notes — store and retrieve notes conversationally via Redis
+- [ ] Google Drive access — read/list files, open docs from conversation
+
+**Reminders**
+- [ ] One-off reminders — "remind me in 2h", persisted and fired via APScheduler
+- [ ] Recurring alarms — "every Monday 9am" job stored in Redis, survives redeploy
+
+### Later — heavy effort (parked)
+- [ ] Fitness / sleep / health tracking — Apple Health, Garmin, or Oura integration
+- [ ] Slack / Teams integration — send and receive messages from Telegram
+- [ ] SMS / phone calls — Twilio or similar, separate cost model
+
 ### Personal ops (remaining)
 - [ ] Weekly AI summary — Claude reviews the week, suggests priorities
 - [ ] Voice output (TTS) — ICARUS talks back
 - [ ] Smarter proactivity — "meeting in 10 min", "Stefan hasn't replied in 3 days"
 
 ### Agent hub (next phase)
-- [ ] Staging environment — dev branch before Spend Lens work
+- [x] Staging environment — dev branch + Railway dev environment live
 - [ ] Spend Lens connection — trigger analyses, receive procurement alerts
-- [ ] LinkedIn marketing agent — Claude drafts, ICARUS previews, you confirm
+- [x] LinkedIn marketing agent — Claude drafts, ICARUS previews, you confirm
 - [ ] Agent status overview — "what are all my agents doing?" in one message
 
 ---
