@@ -165,7 +165,15 @@ def _linkedin_intercept(text: str) -> str | None:
         return None
     pending = get_pending_post(USER_ID)
     if lower in _CONFIRM:
-        return confirm_post(USER_ID) if pending else "No post staged."
+        if not pending:
+            return "No post staged."
+        try:
+            result = confirm_post(USER_ID)
+            logging.info(f"[LINKEDIN] publish result: {result}")
+            return result
+        except Exception as e:
+            logging.error(f"[LINKEDIN] publish failed: {e}")
+            return f"LinkedIn post failed: {e}"
     clear_pending_post(USER_ID)
     return "Post discarded." if pending else "Nothing to cancel."
 
