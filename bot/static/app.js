@@ -223,8 +223,9 @@ function stopRecording() {
 async function sendVoice() {
   const mimeType = audioChunks[0]?.type || 'audio/webm';
   const blob = new Blob(audioChunks, { type: mimeType });
+  const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
   const form = new FormData();
-  form.append('file', blob, 'voice.webm');
+  form.append('file', blob, `voice.${ext}`);
   showTyping();
   try {
     const r = await fetch('/api/voice', { method: 'POST', body: form });

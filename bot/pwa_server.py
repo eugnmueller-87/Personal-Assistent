@@ -195,8 +195,8 @@ async def chat(request: Request):
 @app.post("/api/voice")
 async def voice(request: Request, file: UploadFile = File(...)):
     _auth(request)
-    content_type = file.content_type or "audio/webm"
-    suffix = ".webm" if "webm" in content_type else ".ogg"
+    content_type = file.content_type or file.filename or "audio/webm"
+    suffix = ".m4a" if "mp4" in content_type or "m4a" in content_type else ".webm" if "webm" in content_type else ".ogg"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
