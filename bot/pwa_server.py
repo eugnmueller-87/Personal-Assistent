@@ -10,7 +10,7 @@ from redis_ns import NS
 from claude_router import route, route_image, route_document
 from linkedin_client import get_pending_post, confirm_post, clear_pending_post
 
-_CONFIRM = {"post", "posten", "yes", "ja", "publish", "send", "senden", "ok", "do it", "mach es"}
+_CONFIRM = {"post", "posten", "yes", "ja", "publish", "send", "senden", "ok", "do it", "mach es", "approve", "approved", "go", "go ahead", "looks good", "perfect", "done", "submit"}
 _CANCEL  = {"cancel", "abbrechen", "nein", "no", "discard", "verwerfen", "löschen"}
 
 logging.basicConfig(level=logging.INFO)
