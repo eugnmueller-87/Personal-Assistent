@@ -160,16 +160,14 @@ async def logout(request: Request, response: Response):
 
 
 def _linkedin_intercept(text: str) -> str | None:
-    pending = get_pending_post(USER_ID)
-    if not pending:
-        return None
     lower = text.lower().strip()
+    if lower not in _CONFIRM and lower not in _CANCEL:
+        return None
+    pending = get_pending_post(USER_ID)
     if lower in _CONFIRM:
-        return confirm_post(USER_ID)
-    if lower in _CANCEL:
-        clear_pending_post(USER_ID)
-        return "Post verworfen."
-    return None
+        return confirm_post(USER_ID) if pending else "No post staged."
+    clear_pending_post(USER_ID)
+    return "Post discarded." if pending else "Nothing to cancel."
 
 
 def _build_reply(result: str) -> dict:
