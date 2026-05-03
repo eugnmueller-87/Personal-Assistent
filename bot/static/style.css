@@ -379,6 +379,8 @@ footer {
 
 /* ─── LinkedIn preview card ─── */
 .linkedin-card {
+  display: flex;
+  flex-direction: column;
   background: #1b1b2a;
   border: 1px solid #0a66c2;
   border-radius: 12px;
@@ -388,6 +390,7 @@ footer {
 }
 
 .linkedin-card-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -406,19 +409,17 @@ footer {
 .li-meta  { font-size: 11px; color: var(--text-muted); }
 
 .linkedin-card-body {
+  flex-shrink: 0;
   padding: 12px 14px;
   font-size: 14px;
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.6;
-  max-height: 500px;
-  overflow-y: auto;
 }
-.linkedin-card-body::-webkit-scrollbar { width: 3px; }
-.linkedin-card-body::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 2px; }
 
 .linkedin-card-actions {
+  flex-shrink: 0;
   display: flex;
   gap: 8px;
   padding: 10px 14px 12px;
