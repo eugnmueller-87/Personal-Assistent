@@ -112,23 +112,43 @@ function addBubble(type, text) {
 function showTyping() { typingIndicator.classList.remove('hidden'); messages.scrollTop = messages.scrollHeight; }
 function hideTyping() { typingIndicator.classList.add('hidden'); }
 
-function addLinkedInActions() {
-  const wrap = document.createElement('div');
-  wrap.className = 'linkedin-actions';
-  wrap.id = 'linkedin-actions';
-  [['post', 'Post'], ['cancel', 'Cancel']].forEach(([cmd, label]) => {
+function addLinkedInActions(draft) {
+  const card = document.createElement('div');
+  card.className = 'linkedin-card';
+  card.id = 'linkedin-actions';
+
+  const header = document.createElement('div');
+  header.className = 'linkedin-card-header';
+  header.innerHTML = `
+    <svg class="li-logo" viewBox="0 0 24 24" fill="#0a66c2"><path d="M20.447 20.452H16.89v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a1.98 1.98 0 1 1 0-3.96 1.98 1.98 0 0 1 0 3.96zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <div class="li-header-info">
+      <span class="li-name">Eugen Müller</span>
+      <span class="li-meta">Preview · Not yet posted</span>
+    </div>`;
+  card.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'linkedin-card-body';
+  body.textContent = draft || '';
+  card.appendChild(body);
+
+  const actions = document.createElement('div');
+  actions.className = 'linkedin-card-actions';
+  [['post', 'Publish'], ['cancel', 'Discard']].forEach(([cmd, label]) => {
     const btn = document.createElement('button');
     btn.textContent = label;
     btn.className = `li-btn li-btn-${cmd}`;
-    btn.onclick = () => { wrap.remove(); sendMessage(cmd); };
-    wrap.appendChild(btn);
+    btn.onclick = () => { card.remove(); sendMessage(cmd); };
+    actions.appendChild(btn);
   });
   const editBtn = document.createElement('button');
   editBtn.textContent = 'Edit';
   editBtn.className = 'li-btn li-btn-edit';
   editBtn.onclick = () => { msgInput.focus(); msgInput.placeholder = 'Describe your changes…'; };
-  wrap.appendChild(editBtn);
-  messages.appendChild(wrap);
+  actions.appendChild(editBtn);
+  card.appendChild(actions);
+
+  messages.appendChild(card);
   messages.scrollTop = messages.scrollHeight;
 }
 
@@ -153,7 +173,7 @@ async function sendMessage(text) {
     const data = await r.json();
     hideTyping();
     addBubble('bot', data.reply);
-    if (data.linkedin?.pending) addLinkedInActions();
+    if (data.linkedin?.pending) addLinkedInActions(data.linkedin.draft);
   } catch (e) {
     hideTyping();
     addBubble('bot', 'Connection error. Try again.');
@@ -213,7 +233,7 @@ async function sendVoice() {
     hideTyping();
     if (data.transcript) addBubble('transcript', `"${data.transcript}"`);
     addBubble('bot', data.reply);
-    if (data.linkedin?.pending) addLinkedInActions();
+    if (data.linkedin?.pending) addLinkedInActions(data.linkedin.draft);
   } catch {
     hideTyping();
     addBubble('bot', 'Voice error. Try again.');
