@@ -382,10 +382,8 @@ footer {
   background: #1b1b2a;
   border: 1px solid #0a66c2;
   border-radius: 12px;
-  overflow: hidden;
   max-width: 96%;
-  flex-shrink: 0;
-  align-self: stretch;
+  align-self: flex-start;
   animation: pop-in 0.2s ease;
 }
 
