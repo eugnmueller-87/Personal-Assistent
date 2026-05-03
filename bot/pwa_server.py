@@ -8,6 +8,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from redis_ns import NS
 from claude_router import route, route_image
+from linkedin_client import get_pending_post, confirm_post, clear_pending_post
+
+_CONFIRM = {"post", "posten", "yes", "ja", "publish", "send", "senden", "ok", "do it", "mach es"}
+_CANCEL  = {"cancel", "abbrechen", "nein", "no", "discard", "verwerfen", "löschen"}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -155,6 +159,26 @@ async def logout(request: Request, response: Response):
     return {"ok": True}
 
 
+def _linkedin_intercept(text: str) -> str | None:
+    pending = get_pending_post(USER_ID)
+    if not pending:
+        return None
+    lower = text.lower().strip()
+    if lower in _CONFIRM:
+        return confirm_post(USER_ID)
+    if lower in _CANCEL:
+        clear_pending_post(USER_ID)
+        return "Post verworfen."
+    return None
+
+
+def _append_pending(result: str) -> str:
+    pending = get_pending_post(USER_ID)
+    if pending:
+        result += f"\n\n---\n{pending}\n---\n\nAntworte **post** zum Veröffentlichen oder **cancel** zum Verwerfen."
+    return result
+
+
 @app.post("/api/chat")
 async def chat(request: Request):
     _auth(request)
@@ -163,8 +187,11 @@ async def chat(request: Request):
     if not text:
         raise HTTPException(status_code=400, detail="Empty message")
     logging.info(f"[PWA] chat: {text[:60]!r}")
+    intercept = _linkedin_intercept(text)
+    if intercept:
+        return {"reply": intercept}
     result = route(text, user_id=USER_ID)
-    return {"reply": result}
+    return {"reply": _append_pending(result)}
 
 
 @app.post("/api/voice")
@@ -184,8 +211,11 @@ async def voice(request: Request, file: UploadFile = File(...)):
             )
         text = transcript.text
         logging.info(f"[PWA] voice: {text[:60]!r}")
+        intercept = _linkedin_intercept(text)
+        if intercept:
+            return {"transcript": text, "reply": intercept}
         result = route(text, user_id=USER_ID)
-        return {"transcript": text, "reply": result}
+        return {"transcript": text, "reply": _append_pending(result)}
     finally:
         os.unlink(tmp_path)
 
