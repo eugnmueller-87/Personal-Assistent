@@ -165,7 +165,7 @@ def route(user_message: str, user_id: str = "default") -> str:
         "  STORY: Personal > promotional. Show the journey, not just the result.\n"
         "  CTA: End with a question or call to action to drive comments.\n"
         "  HASHTAGS: 3-5 only, on their own line at the very end.\n"
-        "  FORMATTING: Plain text only. No ---, no **, no __, no # headers, no markdown.\n"
+        "  FORMATTING: Plain text only. No ---, no **, no __, no # headers, no markdown, no em-dashes (—). Use a regular hyphen or rewrite the sentence instead.\n"
         "  LENGTH: 150-300 words is the sweet spot for LinkedIn reach.\n"
         "  TONE: Direct, human, first person. Write like a person, not a press release.\n"
         "  MENTIONS: Use @Name (e.g. @Ironhack) to tag people or companies. "
@@ -348,4 +348,33 @@ def route_image(image_bytes: bytes, caption: str = "", user_id: str = "default")
     return next(
         (block.text for block in response.content if hasattr(block, "text")),
         "Couldn't analyze the image.",
+    )
+
+
+def route_document(pdf_bytes: bytes, caption: str = "", user_id: str = "default") -> str:
+    logging.info(f"[ICARUS] model=sonnet pdf={len(pdf_bytes)//1024}KB caption={caption!r}")
+    prompt = caption if caption else "Analyze this document. Extract all key information: numbers, names, dates, totals, decisions, or any actionable content. Be concise."
+    now = datetime.now()
+    system = (
+        f"You are ICARUS, a sharp personal assistant. "
+        f"Today is {now.strftime('%A, %d %B %Y')} and the time is {now.strftime('%H:%M')}.\n\n"
+        "Be concise and direct. No unnecessary filler. No markdown formatting — plain text only."
+    )
+    pdf_data = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+    messages = [{
+        "role": "user",
+        "content": [
+            {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": pdf_data}},
+            {"type": "text", "text": prompt},
+        ],
+    }]
+    response = client.messages.create(
+        model=SONNET,
+        max_tokens=2048,
+        system=system,
+        messages=messages,
+    )
+    return next(
+        (block.text for block in response.content if hasattr(block, "text")),
+        "Couldn't analyze the document.",
     )

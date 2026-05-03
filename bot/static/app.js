@@ -112,10 +112,36 @@ function addBubble(type, text) {
 function showTyping() { typingIndicator.classList.remove('hidden'); messages.scrollTop = messages.scrollHeight; }
 function hideTyping() { typingIndicator.classList.add('hidden'); }
 
+function addLinkedInActions() {
+  const wrap = document.createElement('div');
+  wrap.className = 'linkedin-actions';
+  wrap.id = 'linkedin-actions';
+  [['post', 'Post'], ['cancel', 'Cancel']].forEach(([cmd, label]) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.className = `li-btn li-btn-${cmd}`;
+    btn.onclick = () => { wrap.remove(); sendMessage(cmd); };
+    wrap.appendChild(btn);
+  });
+  const editBtn = document.createElement('button');
+  editBtn.textContent = 'Edit';
+  editBtn.className = 'li-btn li-btn-edit';
+  editBtn.onclick = () => { msgInput.focus(); msgInput.placeholder = 'Describe your changes…'; };
+  wrap.appendChild(editBtn);
+  messages.appendChild(wrap);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function clearLinkedInActions() {
+  document.getElementById('linkedin-actions')?.remove();
+}
+
 async function sendMessage(text) {
   if (!text.trim()) return;
+  clearLinkedInActions();
   addBubble('user', text);
   msgInput.value = '';
+  msgInput.placeholder = 'Message ICARUS…';
   showTyping();
   try {
     const r = await fetch('/api/chat', {
@@ -127,6 +153,7 @@ async function sendMessage(text) {
     const data = await r.json();
     hideTyping();
     addBubble('bot', data.reply);
+    if (data.linkedin?.pending) addLinkedInActions();
   } catch (e) {
     hideTyping();
     addBubble('bot', 'Connection error. Try again.');
@@ -186,6 +213,7 @@ async function sendVoice() {
     hideTyping();
     if (data.transcript) addBubble('transcript', `"${data.transcript}"`);
     addBubble('bot', data.reply);
+    if (data.linkedin?.pending) addLinkedInActions();
   } catch {
     hideTyping();
     addBubble('bot', 'Voice error. Try again.');

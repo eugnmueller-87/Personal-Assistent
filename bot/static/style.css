@@ -376,3 +376,24 @@ footer {
 #btn-send { background: var(--accent); color: #fff; }
 #btn-send:hover { background: #4338ca; }
 #btn-photo:hover { color: var(--cyan); }
+
+/* ─── LinkedIn approval actions ─── */
+.linkedin-actions {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0 4px 4px;
+  animation: pop-in 0.2s ease;
+}
+.li-btn {
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.li-btn:active { transform: scale(0.95); }
+.li-btn-post   { background: #0a66c2; color: #fff; }
+.li-btn-cancel { background: var(--surface2); color: var(--text-muted); border: 1px solid #2a2a3a; }
+.li-btn-edit   { background: var(--surface2); color: var(--cyan); border: 1px solid rgba(0,212,255,0.25); }

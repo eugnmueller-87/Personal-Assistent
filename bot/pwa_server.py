@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, Response, UploadFile, File, Form, HTTPExce
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from redis_ns import NS
-from claude_router import route, route_image
+from claude_router import route, route_image, route_document
 from linkedin_client import get_pending_post, confirm_post, clear_pending_post
 
 _CONFIRM = {"post", "posten", "yes", "ja", "publish", "send", "senden", "ok", "do it", "mach es"}
@@ -172,11 +172,11 @@ def _linkedin_intercept(text: str) -> str | None:
     return None
 
 
-def _append_pending(result: str) -> str:
+def _build_reply(result: str) -> dict:
     pending = get_pending_post(USER_ID)
     if pending:
-        result += f"\n\n---\n{pending}\n---\n\nAntworte **post** zum Veröffentlichen oder **cancel** zum Verwerfen."
-    return result
+        return {"reply": result, "linkedin": {"pending": True, "draft": pending}}
+    return {"reply": result}
 
 
 @app.post("/api/chat")
@@ -191,7 +191,7 @@ async def chat(request: Request):
     if intercept:
         return {"reply": intercept}
     result = route(text, user_id=USER_ID)
-    return {"reply": _append_pending(result)}
+    return _build_reply(result)
 
 
 @app.post("/api/voice")
@@ -215,7 +215,7 @@ async def voice(request: Request, file: UploadFile = File(...)):
         if intercept:
             return {"transcript": text, "reply": intercept}
         result = route(text, user_id=USER_ID)
-        return {"transcript": text, "reply": _append_pending(result)}
+        return {"transcript": text, **_build_reply(result)}
     finally:
         os.unlink(tmp_path)
 
@@ -227,14 +227,21 @@ async def photo(
     caption: str = Form(""),
 ):
     _auth(request)
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+    content_type = file.content_type or ""
+    is_pdf = "pdf" in content_type or (file.filename or "").lower().endswith(".pdf")
+    suffix = ".pdf" if is_pdf else ".jpg"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
     try:
         with open(tmp_path, "rb") as f:
-            image_bytes = f.read()
-        logging.info(f"[PWA] photo: {len(image_bytes)//1024}KB caption={caption!r}")
-        result = route_image(image_bytes, caption=caption, user_id=USER_ID)
+            file_bytes = f.read()
+        if is_pdf:
+            logging.info(f"[PWA] pdf: {len(file_bytes)//1024}KB caption={caption!r}")
+            result = route_document(file_bytes, caption=caption, user_id=USER_ID)
+        else:
+            logging.info(f"[PWA] photo: {len(file_bytes)//1024}KB caption={caption!r}")
+            result = route_image(file_bytes, caption=caption, user_id=USER_ID)
         return {"reply": result}
     finally:
         os.unlink(tmp_path)
