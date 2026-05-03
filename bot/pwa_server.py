@@ -173,7 +173,7 @@ def _linkedin_intercept(text: str) -> str | None:
 def _build_reply(result: str) -> dict:
     pending = get_pending_post(USER_ID)
     if pending:
-        return {"reply": result, "linkedin": {"pending": True, "draft": pending}}
+        return {"reply": pending, "linkedin": {"pending": True, "draft": pending}}
     return {"reply": result}
 
 

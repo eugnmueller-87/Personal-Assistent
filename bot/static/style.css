@@ -377,53 +377,14 @@ footer {
 #btn-send:hover { background: #4338ca; }
 #btn-photo:hover { color: var(--cyan); }
 
-/* ─── LinkedIn preview card ─── */
-.linkedin-card {
-  display: flex;
-  flex-direction: column;
-  background: #1b1b2a;
-  border: 1px solid #0a66c2;
-  border-radius: 12px;
-  max-width: 96%;
-  align-self: flex-start;
-  animation: pop-in 0.2s ease;
-}
-
-.linkedin-card-header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px 8px;
-  border-bottom: 1px solid #1e2a3a;
-}
-
-.li-logo { width: 22px; height: 22px; flex-shrink: 0; }
-
-.li-header-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.li-name { font-size: 13px; font-weight: 600; color: var(--text); }
-.li-meta  { font-size: 11px; color: var(--text-muted); }
-
-.linkedin-card-body {
-  flex-shrink: 0;
-  padding: 12px 14px;
-  font-size: 14px;
-  color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.6;
-}
-
-.linkedin-card-actions {
-  flex-shrink: 0;
+/* ─── LinkedIn approval buttons ─── */
+.li-action-row {
   display: flex;
   gap: 8px;
-  padding: 10px 14px 12px;
-  border-top: 1px solid #1e2a3a;
+  flex-wrap: wrap;
+  align-self: flex-start;
+  padding: 2px 0;
+  animation: pop-in 0.2s ease;
 }
 
 .li-btn {
