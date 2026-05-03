@@ -383,7 +383,8 @@ footer {
   border: 1px solid #0a66c2;
   border-radius: 12px;
   overflow: hidden;
-  max-width: 88%;
+  max-width: 96%;
+  width: 96%;
   align-self: flex-start;
   animation: pop-in 0.2s ease;
 }
@@ -408,12 +409,12 @@ footer {
 
 .linkedin-card-body {
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.55;
-  max-height: 220px;
+  line-height: 1.6;
+  max-height: 70vh;
   overflow-y: auto;
 }
 .linkedin-card-body::-webkit-scrollbar { width: 3px; }
