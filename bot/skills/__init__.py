@@ -1,8 +1,8 @@
 import logging
-from . import calendar, email, github, search, maps, shopping, linkedin
+from . import calendar, email, github, search, maps, shopping, linkedin, hermes
 from audit_log import log_event
 
-_SKILLS = [calendar, email, github, search, maps, shopping, linkedin]
+_SKILLS = [calendar, email, github, search, maps, shopping, linkedin, hermes]
 
 
 def get_all_tools() -> list:
