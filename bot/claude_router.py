@@ -199,6 +199,7 @@ def route(user_message: str, user_id: str = "default") -> str:
     )
 
     tools = get_all_tools()
+    logging.info(f"[ICARUS] tools={[t['name'] for t in tools]}")
 
     _load_history(user_id)
     history = _history[user_id]

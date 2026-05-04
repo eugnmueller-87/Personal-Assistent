@@ -342,6 +342,27 @@ async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("History cleared. Fresh start.")
 
 
+async def miro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import requests as _req
+    board_type = context.args[0] if context.args else "landscape"
+    category = " ".join(context.args[1:]) if len(context.args) > 1 else None
+    hermes_url = os.environ.get("HERMES_URL", "").rstrip("/")
+    hermes_key = os.environ.get("HERMES_API_KEY", "")
+    if not hermes_url:
+        await update.message.reply_text("HERMES_URL not set in environment.")
+        return
+    await update.message.reply_text(f"Building Miro {board_type} board...")
+    try:
+        headers = {"x-api-key": hermes_key} if hermes_key else {}
+        params = {"category": category} if category else {}
+        r = _req.post(f"{hermes_url}/miro/{board_type}", params=params, headers=headers, timeout=120)
+        r.raise_for_status()
+        url = r.json()["url"]
+        await update.message.reply_text(f"Miro board ready:\n{url}")
+    except Exception as e:
+        await update.message.reply_text(f"Miro board failed: {e}")
+
+
 def main():
     threading.Thread(target=_start_health_server, daemon=True).start()
 
@@ -359,6 +380,7 @@ def main():
     app.add_handler(CommandHandler("task", task, filters=auth))
     app.add_handler(CommandHandler("audit", audit, filters=auth))
     app.add_handler(CommandHandler("clear", clear, filters=auth))
+    app.add_handler(CommandHandler("miro", miro, filters=auth))
     app.add_handler(MessageHandler(filters.VOICE & auth, handle_voice))
     app.add_handler(MessageHandler(filters.PHOTO & auth, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & auth, handle_message))
