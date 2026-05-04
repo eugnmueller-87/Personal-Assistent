@@ -335,6 +335,22 @@ async def audit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Audit log (last 20):\n\n" + "\n".join(lines))
 
 
+async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from claude_router import _history
+    user_id = str(update.effective_user.id)
+    _history[user_id] = []
+    r = context.application.bot_data.get("redis")
+    try:
+        from claude_router import _get_redis
+        redis = _get_redis()
+        if redis:
+            from redis_ns import NS
+            redis.delete(f"{NS}:history:{user_id}")
+    except Exception:
+        pass
+    await update.message.reply_text("History cleared. Fresh start.")
+
+
 def main():
     threading.Thread(target=_start_health_server, daemon=True).start()
 
@@ -351,6 +367,7 @@ def main():
     app.add_handler(CommandHandler("roadmap", roadmap, filters=auth))
     app.add_handler(CommandHandler("task", task, filters=auth))
     app.add_handler(CommandHandler("audit", audit, filters=auth))
+    app.add_handler(CommandHandler("clear", clear, filters=auth))
     app.add_handler(MessageHandler(filters.VOICE & auth, handle_voice))
     app.add_handler(MessageHandler(filters.PHOTO & auth, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & auth, handle_message))
