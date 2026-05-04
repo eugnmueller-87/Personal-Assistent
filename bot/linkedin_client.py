@@ -79,8 +79,10 @@ def _publish(text: str) -> str:
         json=payload,
         timeout=10,
     )
+    logging.info(f"[LINKEDIN] status={resp.status_code} headers={dict(resp.headers)} body={resp.text[:200]}")
     resp.raise_for_status()
-    return f"Posted. Post ID: {resp.headers.get('x-restli-id', 'unknown')}"
+    post_id = resp.headers.get('x-restli-id') or resp.headers.get('X-RestLi-Id') or 'unknown'
+    return f"Posted. Post ID: {post_id}"
 
 
 def stage_linkedin_post(user_id: str, text: str) -> str:

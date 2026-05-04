@@ -7,3 +7,6 @@ google-auth-oauthlib
 requests
 upstash-redis
 pytest
+fastapi
+uvicorn[standard]
+python-multipart

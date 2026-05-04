@@ -97,15 +97,21 @@ ICARUS Telegram (the only interface you need)
 ## Phase 4 — ICARUS as Standalone App
 **Goal:** ICARUS available outside Telegram — browser, desktop, mobile. Same backend, new interfaces. Build after all active projects are stable.
 
-### PWA (web app installable on phone)
-- [ ] FastAPI backend — `/chat`, `/voice`, `/photo` endpoints wrapping existing `claude_router.py`
-- [ ] Chat UI — single HTML page, installable to home screen via `manifest.json`
-- [ ] Voice recording via browser mic API → Whisper → same routing
-- [ ] Photo upload → same `route_image()` pipeline
-- [ ] PIN/password auth (replaces Telegram `CHAT_ID` guard)
+### PWA (web app installable on phone) ✅ — LIVE at icarusai.de
+
+- [x] FastAPI backend — `/chat`, `/voice`, `/photo` endpoints wrapping existing `claude_router.py`
+- [x] Chat UI — single HTML page, installable to home screen via `manifest.json`
+- [x] Voice recording via browser mic API → Whisper → same routing
+- [x] Photo upload → same `route_image()` pipeline
+- [x] PIN auth (Redis-backed sessions, 7-day TTL)
+- [x] JARVIS HUD UI — animated SVG concentric rings, cyan theme, mic button with HUD overlay
+- [x] Deployed to Hostinger VPS (187.124.14.81) via Docker + docker-compose
+- [x] nginx reverse proxy — port 80/443 → uvicorn on 8080
+- [x] HTTPS — Let's Encrypt SSL via certbot, auto-renewing
+- [x] Custom domain — icarusai.de (DNS A record → VPS)
+- [x] Installable as PWA on iPhone via Safari → Share → Add to Home Screen
 - [ ] Push notifications via Firebase or similar
-- [ ] Deploy to Railway alongside or instead of Telegram bot
-- [ ] **Note:** `claude_router.py`, `google_client.py`, `github_client.py` — zero changes needed
+- [ ] Add missing Google / Maps / Tavily credentials to VPS .env
 
 ### Desktop app — JARVIS mode
 - [ ] Standalone desktop client (Electron or Tauri wrapping the PWA)
@@ -170,7 +176,7 @@ ICARUS Telegram (the only interface you need)
 | Smarter proactivity — meeting reminders, follow-up nudges | Planned |
 | Weekly AI summary | Planned |
 | Spend Lens agent connection | Planned |
-| PWA — installable web app | Planned (Phase 4) |
+| PWA — JARVIS HUD UI, PIN auth, text/voice/photo, installable | Live — https://icarusai.de |
 | Wake word — "Hey ICARUS" | Planned (Phase 4) |
 | Desktop app | Planned (Phase 4) |
 | Computer awareness + control | Research (Phase 5) |
