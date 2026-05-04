@@ -336,18 +336,9 @@ async def audit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    from claude_router import _history
+    from claude_router import clear_history
     user_id = str(update.effective_user.id)
-    _history[user_id] = []
-    r = context.application.bot_data.get("redis")
-    try:
-        from claude_router import _get_redis
-        redis = _get_redis()
-        if redis:
-            from redis_ns import NS
-            redis.delete(f"{NS}:history:{user_id}")
-    except Exception:
-        pass
+    clear_history(user_id)
     await update.message.reply_text("History cleared. Fresh start.")
 
 

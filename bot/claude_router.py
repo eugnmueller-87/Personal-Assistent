@@ -79,6 +79,13 @@ def _save_history(user_id: str):
         logging.warning(f"[ICARUS] Redis save failed: {e}")
 
 
+def clear_history(user_id: str):
+    _history[user_id] = []
+    r = _get_redis()
+    if r:
+        r.delete(f"{NS}:history:{user_id}")
+
+
 HAIKU = "claude-haiku-4-5-20251001"
 SONNET = "claude-sonnet-4-6"
 
