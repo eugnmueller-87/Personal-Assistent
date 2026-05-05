@@ -1,7 +1,6 @@
 import os
 import requests
 
-HERMES_URL = os.environ.get("HERMES_URL", "").rstrip("/")
 HERMES_API_KEY = os.environ.get("HERMES_API_KEY", "")
 
 TOOLS = [
@@ -86,6 +85,16 @@ TOOLS = [
 ]
 
 
+def _get_url() -> tuple[str, str | None]:
+    """Returns (url, error). Error is set if URL is missing or malformed."""
+    raw = os.environ.get("HERMES_URL", "").strip().rstrip("/")
+    if not raw:
+        return "", "HERMES_URL is not set in environment."
+    if not raw.startswith("http"):
+        return "", f"HERMES_URL is misconfigured (got: '{raw[:60]}') — must start with https://"
+    return raw, None
+
+
 def _headers():
     return {"x-api-key": HERMES_API_KEY} if HERMES_API_KEY else {}
 
@@ -104,13 +113,14 @@ def _format_item(item: dict) -> str:
 
 
 def _build_miro_board(board_type: str, category: str = None) -> str:
-    if not HERMES_URL:
-        return "HERMES_URL not set."
+    url, err = _get_url()
+    if err:
+        return err
     params = {}
     if category and board_type == "landscape":
         params["category"] = category
     try:
-        r = requests.post(f"{HERMES_URL}/miro/{board_type}", params=params, headers=_headers(), timeout=120)
+        r = requests.post(f"{url}/miro/{board_type}", params=params, headers=_headers(), timeout=120)
         r.raise_for_status()
         label = f" ({category})" if category else ""
         return f"Miro {board_type} board{label} ready: {r.json()['url']}"
@@ -119,10 +129,11 @@ def _build_miro_board(board_type: str, category: str = None) -> str:
 
 
 def _hermes_query(company: str, limit: int = 5) -> str:
-    if not HERMES_URL:
-        return "HERMES_URL not set."
+    url, err = _get_url()
+    if err:
+        return err
     try:
-        r = requests.get(f"{HERMES_URL}/query/{company}", params={"limit": limit}, headers=_headers(), timeout=15)
+        r = requests.get(f"{url}/query/{company}", params={"limit": limit}, headers=_headers(), timeout=15)
         r.raise_for_status()
         data = r.json()
         signals = data.get("signals", [])
@@ -137,10 +148,11 @@ def _hermes_query(company: str, limit: int = 5) -> str:
 
 
 def _hermes_briefing(limit: int = 10) -> str:
-    if not HERMES_URL:
-        return "HERMES_URL not set."
+    url, err = _get_url()
+    if err:
+        return err
     try:
-        r = requests.get(f"{HERMES_URL}/briefing", params={"limit": limit}, headers=_headers(), timeout=15)
+        r = requests.get(f"{url}/briefing", params={"limit": limit}, headers=_headers(), timeout=15)
         r.raise_for_status()
         data = r.json()
         signals = data.get("signals", [])
@@ -155,10 +167,11 @@ def _hermes_briefing(limit: int = 10) -> str:
 
 
 def _hermes_greet() -> str:
-    if not HERMES_URL:
-        return "HERMES_URL not set — cannot reach Hermes."
+    url, err = _get_url()
+    if err:
+        return err
     try:
-        r = requests.get(f"{HERMES_URL}/greet", timeout=10)
+        r = requests.get(f"{url}/greet", timeout=10)
         r.raise_for_status()
         data = r.json()
         return f"{data['message']}\n\n{data['latest']}"
