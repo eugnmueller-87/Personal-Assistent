@@ -326,6 +326,10 @@ async def check_new_emails(context):
         asyncio.create_task(handle_error(e, _tb.format_exc()))
 
 
+async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("pong")
+
+
 async def audit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     events = get_recent_events(20)
     if not events:
@@ -390,6 +394,7 @@ def main():
 
     auth = _allowed_filter()
 
+    app.add_handler(CommandHandler("ping", ping))
     app.add_handler(CommandHandler("start", start, filters=auth))
     app.add_handler(CommandHandler("calendar", calendar, filters=auth))
     app.add_handler(CommandHandler("emails", emails, filters=auth))
