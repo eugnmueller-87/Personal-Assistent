@@ -381,8 +381,8 @@ async def miro(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     from skills import get_all_tools
-    tools = get_all_tools()
-    print(f"[ICARUS] Loaded {len(tools)} tools: {[t['name'] for t in tools]}", flush=True)
+    _loaded_tools = get_all_tools()
+    print(f"[ICARUS] Loaded {len(_loaded_tools)} tools: {[t['name'] for t in _loaded_tools]}", flush=True)
     threading.Thread(target=_start_health_server, daemon=True).start()
 
     token = os.environ["TELEGRAM_BOT_TOKEN"]
