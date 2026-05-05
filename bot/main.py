@@ -336,10 +336,19 @@ async def audit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def tools(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    from skills import get_all_tools
-    t = get_all_tools()
-    names = [x["name"] for x in t]
-    await update.message.reply_text(f"{len(t)} tools loaded:\n" + "\n".join(names))
+    lines = []
+    try:
+        from skills import get_all_tools
+        t = get_all_tools()
+        lines.append(f"{len(t)} tools: {', '.join(x['name'] for x in t)}")
+    except Exception as e:
+        lines.append(f"get_all_tools error: {e}")
+    try:
+        from skills import hermes
+        lines.append(f"hermes.TOOLS count: {len(hermes.TOOLS)}")
+    except Exception as e:
+        lines.append(f"hermes import error: {e}")
+    await update.message.reply_text("\n".join(lines))
 
 
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
