@@ -8,32 +8,29 @@ HERMES_API_KEY = os.environ.get("HERMES_API_KEY", _HERMES_DEFAULT_KEY)
 
 TOOLS = [
     {
-        "name": "build_miro_board",
+        "name": "hermes_chart",
         "description": (
-            "Build a Miro visual board from Hermes market intelligence data. "
-            "Use when the user asks to build, create, or generate a Miro board, "
-            "supplier landscape, signal board, or market intelligence visualization."
+            "Generate an inline chart image from Hermes market intelligence data. "
+            "Use when the user asks for a chart, graph, visual, or wants to see signals visualised. "
+            "Returns a PNG image URL that Icarus will send as a photo in Telegram."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "board_type": {
+                "chart_type": {
                     "type": "string",
-                    "enum": ["landscape", "signals"],
+                    "enum": ["signals", "landscape"],
                     "description": (
-                        "landscape = all tracked suppliers grouped by category. "
-                        "signals = today's significant market signals grouped by signal type."
-                    ),
-                },
-                "category": {
-                    "type": "string",
-                    "description": (
-                        "Optional. Filter landscape board to one category. "
-                        "Examples: 'AI Foundation Labs', 'Semiconductors & Chips', 'Cloud & Infrastructure'."
+                        "signals = bar chart of significant signals by urgency (HIGH/MEDIUM/LOW). "
+                        "Best for: 'what's urgent?', 'show me what's critical', 'how many high signals?', "
+                        "'what's moving today', urgency or priority questions. "
+                        "landscape = horizontal bar chart of item counts per category (top 10). "
+                        "Best for: 'what sectors have most activity?', 'overview by category', "
+                        "'which markets are most covered?', 'show me the landscape', category or coverage questions."
                     ),
                 },
             },
-            "required": ["board_type"],
+            "required": ["chart_type"],
         },
     },
     {
@@ -159,20 +156,18 @@ def _format_item(item: dict) -> str:
     return line
 
 
-def _build_miro_board(board_type: str, category: str = None) -> str:
+def _hermes_chart(chart_type: str) -> str:
     url, err = _get_url()
     if err:
         return err
-    params = {}
-    if category and board_type == "landscape":
-        params["category"] = category
+    endpoint = "signals" if chart_type == "signals" else "landscape"
     try:
-        r = requests.post(f"{url}/miro/{board_type}", params=params, headers=_headers(), timeout=120)
+        r = requests.get(f"{url}/chart/{endpoint}", headers=_headers(), timeout=30)
         r.raise_for_status()
-        label = f" ({category})" if category else ""
-        return f"Miro {board_type} board{label} ready: {r.json()['url']}"
+        chart_url = r.json()["url"]
+        return f"CHART_URL:{chart_url}"
     except Exception as e:
-        return f"Miro board failed: {e}"
+        return f"Hermes chart failed: {e}"
 
 
 def _hermes_query(company: str, limit: int = 5) -> str:
@@ -262,8 +257,8 @@ def _hermes_greet() -> str:
 def handle(name: str, inputs: dict, user_id: str = "default"):
     if name == "hermes_greet":
         return _hermes_greet()
-    if name == "build_miro_board":
-        return _build_miro_board(inputs.get("board_type", "landscape"), inputs.get("category"))
+    if name == "hermes_chart":
+        return _hermes_chart(inputs.get("chart_type", "signals"))
     if name == "hermes_query":
         return _hermes_query(inputs["company"], inputs.get("limit", 5))
     if name == "hermes_briefing":

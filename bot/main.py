@@ -1,8 +1,11 @@
 import os
+import re
 import asyncio
 import tempfile
 import logging
 import threading
+
+_CHART_URL_RE = re.compile(r'CHART_URL:(https://\S+)')
 from datetime import time as dtime
 from zoneinfo import ZoneInfo
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -163,7 +166,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f'"{text}"')
     try:
         result = route(text, user_id=user_id)
-        await _reply_with_approval(update, user_id, result)
+        await _send_result(update, context, user_id, result)
     except Exception as e:
         import traceback as _tb
         asyncio.create_task(handle_error(e, _tb.format_exc()))
@@ -225,11 +228,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("On it...")
     try:
         result = route(text, user_id=user_id)
-        await _reply_with_approval(update, user_id, result)
+        await _send_result(update, context, user_id, result)
     except Exception as e:
         import traceback as _tb
         asyncio.create_task(handle_error(e, _tb.format_exc()))
         await update.message.reply_text("Hit an error. Auto-fixing — back in ~2 min.")
+
+
+async def _send_result(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str, result: str):
+    """Send result as photo if it contains a chart URL, otherwise as normal text/approval flow."""
+    match = _CHART_URL_RE.search(result)
+    if match:
+        chart_url = match.group(1)
+        caption = _CHART_URL_RE.sub("", result).strip() or None
+        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=chart_url, caption=caption)
+    else:
+        await _reply_with_approval(update, user_id, result)
 
 
 async def _reply_with_approval(update: Update, user_id: str, text: str):
@@ -362,25 +376,26 @@ async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("History cleared. Fresh start.")
 
 
-async def miro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import requests as _req
-    board_type = context.args[0] if context.args else "landscape"
-    category = " ".join(context.args[1:]) if len(context.args) > 1 else None
+    chart_type = context.args[0] if context.args else "signals"
+    if chart_type not in ("signals", "landscape"):
+        await update.message.reply_text("Usage: /chart signals  or  /chart landscape")
+        return
     hermes_url = os.environ.get("HERMES_URL", "").rstrip("/")
     hermes_key = os.environ.get("HERMES_API_KEY", "")
     if not hermes_url:
         await update.message.reply_text("HERMES_URL not set in environment.")
         return
-    await update.message.reply_text(f"Building Miro {board_type} board...")
+    await update.message.reply_text(f"Building {chart_type} chart...")
     try:
         headers = {"x-api-key": hermes_key} if hermes_key else {}
-        params = {"category": category} if category else {}
-        r = _req.post(f"{hermes_url}/miro/{board_type}", params=params, headers=headers, timeout=120)
+        r = _req.get(f"{hermes_url}/chart/{chart_type}", headers=headers, timeout=30)
         r.raise_for_status()
-        url = r.json()["url"]
-        await update.message.reply_text(f"Miro board ready:\n{url}")
+        chart_url = r.json()["url"]
+        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=chart_url)
     except Exception as e:
-        await update.message.reply_text(f"Miro board failed: {e}")
+        await update.message.reply_text(f"Chart failed: {e}")
 
 
 def main():
@@ -405,7 +420,7 @@ def main():
     app.add_handler(CommandHandler("audit", audit, filters=auth))
     app.add_handler(CommandHandler("tools", tools, filters=auth))
     app.add_handler(CommandHandler("clear", clear, filters=auth))
-    app.add_handler(CommandHandler("miro", miro, filters=auth))
+    app.add_handler(CommandHandler("chart", chart, filters=auth))
     app.add_handler(MessageHandler(filters.VOICE & auth, handle_voice))
     app.add_handler(MessageHandler(filters.PHOTO & auth, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & auth, handle_message))
