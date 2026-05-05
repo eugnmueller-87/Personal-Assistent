@@ -116,6 +116,77 @@ TOOLS = [
         },
     },
     {
+        "name": "hermes_digest",
+        "description": (
+            "Get the weekly Hermes market intelligence digest — a Claude-written summary "
+            "of the most significant signals per category for the current week. "
+            "Use when the user asks for a weekly digest, weekly summary, weekly report, "
+            "'what happened this week in the market?', or 'give me the weekly Hermes report'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "refresh": {
+                    "type": "boolean",
+                    "description": "Force regeneration of the digest. Default false.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "hermes_watch",
+        "description": (
+            "Manage the Hermes supplier watchlist — companies that get crawled every 2 hours "
+            "instead of every 6 hours. "
+            "Use when the user says 'watch X closely', 'add X to watchlist', "
+            "'stop watching X', 'remove X from watchlist', or 'show me the watchlist'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["add", "remove", "list"],
+                    "description": "'add' to watch a company, 'remove' to unwatch, 'list' to see all watched companies.",
+                },
+                "company": {
+                    "type": "string",
+                    "description": "Company name — required for add/remove, omit for list.",
+                },
+            },
+            "required": ["action"],
+        },
+    },
+    {
+        "name": "hermes_delta",
+        "description": (
+            "Compare this week's macro themes to last week's — what's new, what's continuing, "
+            "what has faded. Use when the user asks 'what changed this week?', "
+            "'what's new vs last week?', 'any new trends?', 'what themes are continuing?'."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "hermes_enrich",
+        "description": (
+            "Ask Hermes to enrich a company profile — extract key products, pricing notes, "
+            "and a risk summary from accumulated signals using Claude Haiku. "
+            "Use when the user asks 'enrich the profile for X', 'extract key products for Y', "
+            "'what are Z's key products?', or 'summarise the risk for W'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company": {
+                    "type": "string",
+                    "description": "Company to enrich.",
+                },
+            },
+            "required": ["company"],
+        },
+    },
+    {
         "name": "hermes_trends",
         "description": (
             "Get macro theme clusters detected across all recent Hermes signals. "
@@ -201,6 +272,116 @@ def _format_item(item: dict) -> str:
     if reason:
         line += f"\n   {reason[:120]}"
     return line
+
+
+def _hermes_digest(refresh: bool = False) -> str:
+    url, err = _get_url()
+    if err:
+        return err
+    try:
+        params = {"refresh": "true"} if refresh else {}
+        r = requests.get(f"{url}/digest", params=params, headers=_headers(), timeout=60)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("status") == "regenerating":
+            return data["message"]
+        digest = data.get("digest")
+        if not digest:
+            return data.get("message", "No weekly digest available yet.")
+        lines = [
+            f"Weekly digest — {digest.get('week', '')} "
+            f"({digest.get('total_signals', '?')} signals processed)"
+        ]
+        lines.append(f"\nOverall: {digest.get('overall', '')}")
+        for cat in digest.get("categories", []):
+            lines.append(f"\n{cat['name']} ({cat['signal_count']} signals)")
+            lines.append(f"  {cat['summary']}")
+            if cat.get("top_signal"):
+                lines.append(f"  Top: {cat['top_signal']}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Hermes digest failed: {e}"
+
+
+def _hermes_watch(action: str, company: str = "") -> str:
+    url, err = _get_url()
+    if err:
+        return err
+    try:
+        if action == "list":
+            r = requests.get(f"{url}/watchlist", headers=_headers(), timeout=10)
+            r.raise_for_status()
+            data = r.json()
+            slugs = data.get("watchlist", [])
+            if not slugs:
+                return "Watchlist is empty. Say 'watch [company] closely' to add one."
+            names = ", ".join(s.replace("_", " ").title() for s in slugs)
+            return f"Watchlist ({len(slugs)} companies): {names}\nThese are crawled every 2 hours."
+        if not company:
+            return "Please specify a company name."
+        if action == "add":
+            r = requests.post(f"{url}/watchlist/{company}", headers=_headers(), timeout=10)
+            r.raise_for_status()
+            return f"{company} added to watchlist — will now be crawled every 2 hours."
+        if action == "remove":
+            r = requests.delete(f"{url}/watchlist/{company}", headers=_headers(), timeout=10)
+            r.raise_for_status()
+            return f"{company} removed from watchlist."
+        return f"Unknown action: {action}"
+    except Exception as e:
+        return f"Hermes watchlist failed: {e}"
+
+
+def _hermes_delta() -> str:
+    url, err = _get_url()
+    if err:
+        return err
+    try:
+        r = requests.get(f"{url}/trends/delta", headers=_headers(), timeout=20)
+        r.raise_for_status()
+        data = r.json()
+        if not data.get("has_history"):
+            return "No last-week data yet — trend comparison will be available after the first full week."
+        lines = [
+            f"Trend delta — week {data['week']} "
+            f"(this week: {data['this_week_clusters']} themes, last week: {data['last_week_clusters']})"
+        ]
+        if data.get("new"):
+            lines.append(f"\nNew this week ({len(data['new'])}):")
+            for c in data["new"]:
+                lines.append(f"  🆕 {c['label']}")
+        if data.get("continuing"):
+            lines.append(f"\nContinuing ({len(data['continuing'])}):")
+            for c in data["continuing"]:
+                lines.append(f"  🔄 {c['label']}")
+        if data.get("resolved"):
+            lines.append(f"\nFaded since last week ({len(data['resolved'])}):")
+            for c in data["resolved"]:
+                lines.append(f"  ✅ {c['label']}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Hermes delta failed: {e}"
+
+
+def _hermes_enrich(company: str) -> str:
+    url, err = _get_url()
+    if err:
+        return err
+    try:
+        r = requests.post(f"{url}/enrich/{company}", headers=_headers(), timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        profile = data.get("profile", {})
+        lines = [f"Enriched: {data.get('company', company)}"]
+        if profile.get("key_products"):
+            lines.append(f"Key products: {', '.join(profile['key_products'])}")
+        if profile.get("pricing_notes"):
+            lines.append(f"Pricing: {profile['pricing_notes']}")
+        if profile.get("risk_summary"):
+            lines.append(f"Risk: {profile['risk_summary']}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Hermes enrich failed: {e}"
 
 
 def _hermes_trends(refresh: bool = False) -> str:
@@ -385,6 +566,14 @@ def handle(name: str, inputs: dict, user_id: str = "default"):
         return _hermes_chart(inputs.get("chart_type", "signals"))
     if name == "hermes_query":
         return _hermes_query(inputs["company"], inputs.get("limit", 5))
+    if name == "hermes_digest":
+        return _hermes_digest(inputs.get("refresh", False))
+    if name == "hermes_watch":
+        return _hermes_watch(inputs["action"], inputs.get("company", ""))
+    if name == "hermes_delta":
+        return _hermes_delta()
+    if name == "hermes_enrich":
+        return _hermes_enrich(inputs["company"])
     if name == "hermes_trends":
         return _hermes_trends(inputs.get("refresh", False))
     if name == "hermes_profile":

@@ -297,6 +297,21 @@ def _hermes_morning_signals() -> str:
         return ""
 
 
+async def hermes_weekly_digest(context):
+    """Send the weekly Hermes digest every Sunday at 18:30 Berlin."""
+    try:
+        from skills.hermes import _hermes_digest
+        digest_text = _hermes_digest()
+        if digest_text and "No weekly digest" not in digest_text:
+            await context.bot.send_message(
+                chat_id=os.environ["TELEGRAM_CHAT_ID"],
+                text=f"📊 Weekly Hermes digest\n\n{digest_text}",
+            )
+            log_event("hermes_weekly_digest", "sent ok")
+    except Exception as e:
+        logging.error(f"[ICARUS] hermes_weekly_digest failed: {e}")
+
+
 async def morning_briefing(context):
     try:
         cal = get_today_events()
@@ -425,6 +440,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_reply_callback))
 
     app.job_queue.run_daily(morning_briefing, time=dtime(hour=6, minute=0, tzinfo=BERLIN))
+    app.job_queue.run_daily(hermes_weekly_digest, time=dtime(hour=18, minute=30, tzinfo=BERLIN), days=(6,))
     app.job_queue.run_repeating(check_new_emails, interval=900, first=60)
 
     app.run_polling()
