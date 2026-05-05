@@ -89,8 +89,8 @@ TOOLS = [
 
 
 def _redis():
-    url = os.environ.get("UPSTASH_REDIS_URL")
-    token = os.environ.get("UPSTASH_REDIS_TOKEN")
+    url = os.environ.get("UPSTASH_REDIS_REST_URL") or os.environ.get("UPSTASH_REDIS_URL")
+    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN") or os.environ.get("UPSTASH_REDIS_TOKEN")
     if not (url and token):
         return None
     from upstash_redis import Redis
