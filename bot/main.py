@@ -335,6 +335,13 @@ async def audit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Audit log (last 20):\n\n" + "\n".join(lines))
 
 
+async def tools(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from skills import get_all_tools
+    t = get_all_tools()
+    names = [x["name"] for x in t]
+    await update.message.reply_text(f"{len(t)} tools loaded:\n" + "\n".join(names))
+
+
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from claude_router import clear_history
     user_id = str(update.effective_user.id)
@@ -382,6 +389,7 @@ def main():
     app.add_handler(CommandHandler("roadmap", roadmap, filters=auth))
     app.add_handler(CommandHandler("task", task, filters=auth))
     app.add_handler(CommandHandler("audit", audit, filters=auth))
+    app.add_handler(CommandHandler("tools", tools, filters=auth))
     app.add_handler(CommandHandler("clear", clear, filters=auth))
     app.add_handler(CommandHandler("miro", miro, filters=auth))
     app.add_handler(MessageHandler(filters.VOICE & auth, handle_voice))
