@@ -165,7 +165,7 @@ def _hermes_chart(chart_type: str) -> str:
         r = requests.get(f"{url}/chart/{endpoint}", headers=_headers(), timeout=30)
         r.raise_for_status()
         chart_url = r.json()["url"]
-        return f"CHART_URL:{chart_url}"
+        return f"Chart ready: {chart_url}"
     except Exception as e:
         return f"Hermes chart failed: {e}"
 

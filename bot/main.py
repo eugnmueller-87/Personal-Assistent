@@ -1,11 +1,8 @@
 import os
-import re
 import asyncio
 import tempfile
 import logging
 import threading
-
-_CHART_URL_RE = re.compile(r'CHART_URL:(https://\S+)')
 from datetime import time as dtime
 from zoneinfo import ZoneInfo
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -166,7 +163,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f'"{text}"')
     try:
         result = route(text, user_id=user_id)
-        await _send_result(update, context, user_id, result)
+        await _reply_with_approval(update, user_id, result)
     except Exception as e:
         import traceback as _tb
         asyncio.create_task(handle_error(e, _tb.format_exc()))
@@ -228,22 +225,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("On it...")
     try:
         result = route(text, user_id=user_id)
-        await _send_result(update, context, user_id, result)
+        await _reply_with_approval(update, user_id, result)
     except Exception as e:
         import traceback as _tb
         asyncio.create_task(handle_error(e, _tb.format_exc()))
         await update.message.reply_text("Hit an error. Auto-fixing — back in ~2 min.")
-
-
-async def _send_result(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str, result: str):
-    """Send result as photo if it contains a chart URL, otherwise as normal text/approval flow."""
-    match = _CHART_URL_RE.search(result)
-    if match:
-        chart_url = match.group(1)
-        caption = _CHART_URL_RE.sub("", result).strip() or None
-        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=chart_url, caption=caption)
-    else:
-        await _reply_with_approval(update, user_id, result)
 
 
 async def _reply_with_approval(update: Update, user_id: str, text: str):
