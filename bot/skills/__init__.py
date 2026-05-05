@@ -1,8 +1,13 @@
 import logging
-from . import calendar, email, github, search, maps, shopping, linkedin, hermes
+from . import calendar, email, github, search, maps, shopping, linkedin
 from audit_log import log_event
 
-_SKILLS = [calendar, email, github, search, maps, shopping, linkedin, hermes]
+try:
+    from . import hermes as hermes
+    _SKILLS = [calendar, email, github, search, maps, shopping, linkedin, hermes]
+except Exception as e:
+    logging.error(f"[ICARUS] hermes skill failed to load: {e}")
+    _SKILLS = [calendar, email, github, search, maps, shopping, linkedin]
 
 
 def get_all_tools() -> list:
