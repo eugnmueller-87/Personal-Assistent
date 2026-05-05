@@ -65,6 +65,50 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
+        "name": "hermes_search",
+        "description": (
+            "Search Hermes market intelligence by topic, theme, or natural language query. "
+            "Use when the user asks about a theme, trend, or topic across multiple suppliers — "
+            "e.g. 'any signals about chip shortages?', 'what are cloud suppliers saying about pricing?', "
+            "'supply chain disruptions this week', 'AI compute capacity'. "
+            "Use hermes_query for a specific named company. Use hermes_search for topics and themes."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural language topic or theme to search for across all suppliers.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max results to return. Default 10.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "hermes_crawl",
+        "description": (
+            "Tell Hermes to run an immediate crawl cycle to collect fresh market intelligence. "
+            "Use when the user asks Hermes to crawl, run a crawl, fetch fresh data, update signals, "
+            "or collect new intelligence. Crawler types: 'rss' (news feeds, runs in minutes) or "
+            "'edgar' (SEC filings, runs in minutes). Default to 'rss' if not specified."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "crawler": {
+                    "type": "string",
+                    "enum": ["rss", "edgar", "tavily"],
+                    "description": "Which crawler to run: 'rss' for news feeds, 'edgar' for SEC filings, 'tavily' for deep web search.",
+                },
+            },
+            "required": ["crawler"],
+        },
+    },
+    {
         "name": "hermes_briefing",
         "description": (
             "Get the latest significant market intelligence signals from Hermes "
@@ -87,7 +131,7 @@ TOOLS = [
 
 def _get_url() -> tuple[str, str | None]:
     """Returns (url, error). Error is set if URL is missing or malformed."""
-    raw = os.environ.get("HERMES_URL", "").strip().rstrip("/")
+    raw = os.environ.get("HERMES_URL", "").strip().strip('"').strip("'").rstrip("/")
     if not raw:
         return "", "HERMES_URL is not set in environment."
     if not raw.startswith("http"):
@@ -166,6 +210,39 @@ def _hermes_briefing(limit: int = 10) -> str:
         return f"Hermes briefing failed: {e}"
 
 
+def _hermes_search(query: str, limit: int = 10) -> str:
+    url, err = _get_url()
+    if err:
+        return err
+    try:
+        r = requests.get(f"{url}/search", params={"q": query, "limit": limit}, headers=_headers(), timeout=20)
+        r.raise_for_status()
+        data = r.json()
+        results = data.get("results", [])
+        if not results:
+            return f"No Hermes signals matched '{query}' — try a broader topic or trigger a crawl first."
+        lines = [f"Hermes search — '{query}' ({len(results)} results):"]
+        for item in results:
+            score = item.get("_score", "")
+            score_str = f" [{score}]" if score else ""
+            lines.append(_format_item(item) + score_str)
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Hermes search failed: {e}"
+
+
+def _hermes_crawl(crawler: str = "rss") -> str:
+    url, err = _get_url()
+    if err:
+        return err
+    try:
+        r = requests.post(f"{url}/crawl/{crawler}", headers=_headers(), timeout=15)
+        r.raise_for_status()
+        return f"Hermes started a {crawler.upper()} crawl cycle. Results will be stored in Redis within a few minutes."
+    except Exception as e:
+        return f"Hermes crawl trigger failed: {e}"
+
+
 def _hermes_greet() -> str:
     url, err = _get_url()
     if err:
@@ -188,4 +265,8 @@ def handle(name: str, inputs: dict, user_id: str = "default"):
         return _hermes_query(inputs["company"], inputs.get("limit", 5))
     if name == "hermes_briefing":
         return _hermes_briefing(inputs.get("limit", 10))
+    if name == "hermes_search":
+        return _hermes_search(inputs["query"], inputs.get("limit", 10))
+    if name == "hermes_crawl":
+        return _hermes_crawl(inputs.get("crawler", "rss"))
     return None
