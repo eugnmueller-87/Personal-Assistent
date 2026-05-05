@@ -1,7 +1,5 @@
 import os
-import json
 import requests
-from difflib import get_close_matches
 
 HERMES_URL = os.environ.get("HERMES_URL", "").rstrip("/")
 HERMES_API_KEY = os.environ.get("HERMES_API_KEY", "")
@@ -88,19 +86,13 @@ TOOLS = [
 ]
 
 
-def _redis():
-    url = os.environ.get("UPSTASH_REDIS_REST_URL") or os.environ.get("UPSTASH_REDIS_URL")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN") or os.environ.get("UPSTASH_REDIS_TOKEN")
-    if not (url and token):
-        return None
-    from upstash_redis import Redis
-    return Redis(url=url, token=token)
+def _headers():
+    return {"x-api-key": HERMES_API_KEY} if HERMES_API_KEY else {}
 
 
 def _format_item(item: dict) -> str:
     emoji = item.get("emoji", "📰")
     urgency = item.get("urgency", "")
-    signal = item.get("signal_type", "OTHER")
     supplier = item.get("supplier", "")
     title = item.get("title", "")[:120]
     date = item.get("published", "")[:10]
@@ -113,65 +105,53 @@ def _format_item(item: dict) -> str:
 
 def _build_miro_board(board_type: str, category: str = None) -> str:
     if not HERMES_URL:
-        return "HERMES_URL not set — add it to your environment variables."
-    endpoint = f"{HERMES_URL}/miro/{board_type}"
+        return "HERMES_URL not set."
     params = {}
     if category and board_type == "landscape":
         params["category"] = category
-    headers = {"x-api-key": HERMES_API_KEY} if HERMES_API_KEY else {}
     try:
-        r = requests.post(endpoint, params=params, headers=headers, timeout=120)
+        r = requests.post(f"{HERMES_URL}/miro/{board_type}", params=params, headers=_headers(), timeout=120)
         r.raise_for_status()
-        data = r.json()
         label = f" ({category})" if category else ""
-        return f"Miro {board_type} board{label} ready: {data['url']}"
+        return f"Miro {board_type} board{label} ready: {r.json()['url']}"
     except Exception as e:
         return f"Miro board failed: {e}"
 
 
 def _hermes_query(company: str, limit: int = 5) -> str:
-    r = _redis()
-    if not r:
-        return "Redis not available."
-    slug = company.lower().strip().replace(" ", "_").replace("-", "_").replace(".", "_")
-    if not r.exists(f"hermes:supplier:{slug}"):
-        keys = r.keys("hermes:supplier:*")
-        known = [k.replace("hermes:supplier:", "") for k in keys]
-        matches = get_close_matches(slug, known, n=1, cutoff=0.6)
-        if not matches:
-            return f"No Hermes data found for '{company}'. It may not be tracked yet."
-        slug = matches[0]
-    ids = r.lrange(f"hermes:supplier:{slug}", 0, limit - 1)
-    if not ids:
-        return f"No signals yet for {company}."
-    lines = [f"Hermes — {slug.replace('_', ' ').title()} (last {len(ids)} signals):"]
-    for item_id in ids:
-        raw = r.get(f"hermes:item:{item_id}")
-        if raw:
-            lines.append(_format_item(json.loads(raw)))
-    return "\n".join(lines)
+    if not HERMES_URL:
+        return "HERMES_URL not set."
+    try:
+        r = requests.get(f"{HERMES_URL}/query/{company}", params={"limit": limit}, headers=_headers(), timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        signals = data.get("signals", [])
+        if not signals:
+            return data.get("message", f"No signals found for {company}.")
+        lines = [f"Hermes — {data['company']} ({len(signals)} signals):"]
+        for item in signals:
+            lines.append(_format_item(item))
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Hermes query failed: {e}"
 
 
 def _hermes_briefing(limit: int = 10) -> str:
-    r = _redis()
-    if not r:
-        return "Redis not available."
-    keys = r.keys("hermes:item:*")
-    items = []
-    for key in keys[:300]:
-        raw = r.get(key)
-        if raw:
-            item = json.loads(raw)
-            if item.get("is_significant"):
-                items.append(item)
-    items.sort(key=lambda x: x.get("published", ""), reverse=True)
-    items = items[:limit]
-    if not items:
-        return "No significant Hermes signals yet — data accumulates as crawlers run."
-    lines = [f"Hermes briefing — top {len(items)} signals:"]
-    for item in items:
-        lines.append(_format_item(item))
-    return "\n".join(lines)
+    if not HERMES_URL:
+        return "HERMES_URL not set."
+    try:
+        r = requests.get(f"{HERMES_URL}/briefing", params={"limit": limit}, headers=_headers(), timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        signals = data.get("signals", [])
+        if not signals:
+            return "No significant Hermes signals yet — data accumulates as crawlers run."
+        lines = [f"Hermes briefing — top {len(signals)} signals:"]
+        for item in signals:
+            lines.append(_format_item(item))
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Hermes briefing failed: {e}"
 
 
 def _hermes_greet() -> str:
