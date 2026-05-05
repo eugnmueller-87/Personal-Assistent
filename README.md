@@ -1,10 +1,12 @@
-# ORG EUGEN
+# Icarus AI
 
-Personal operations system — AI assistant, automation, and procurement intelligence.
+Personal AI operating system — Telegram bot + PWA, live at [icarusai.de](https://icarusai.de).
+
+Icarus handles your personal world (calendar, email, tasks, LinkedIn) and orchestrates **Hermes**, an external market intelligence sub-agent that watches ~590 tech suppliers 24/7. Together they form a complete personal operations system: one facing inward, one facing outward.
 
 ---
 
-## ICARUS — Live UI
+## Live UI
 
 <div align="center">
   <img src="screenshots/login.png" width="260" alt="ICARUS Login" />
@@ -12,63 +14,142 @@ Personal operations system — AI assistant, automation, and procurement intelli
   <img src="screenshots/chat.png" width="260" alt="ICARUS Chat" />
 </div>
 
-> JARVIS-style PWA — live at [icarusai.de](https://icarusai.de) · PIN auth · voice · photo · installable on mobile
+> JARVIS-style PWA · PIN auth · voice · photo · installable on mobile
 
 ---
 
-## Structure
+## What Icarus Can Do
+
+### Personal Operations
+| Capability | How to use |
+|---|---|
+| Google Calendar | "What's on my calendar this week?" |
+| Gmail | "Any urgent emails?" · "Reply to Sarah saying..." |
+| GitHub Issues | "Create a task: review supplier contracts" |
+| LinkedIn posts | "Draft a post about NVIDIA's new chip" → approve/edit/cancel |
+| Shopping list | "Add oat milk" · "What's on my list?" |
+| Expense tracking | Log by text or receipt photo |
+| Morning briefing | 06:00 Berlin — calendar + email + issues + top Hermes signals |
+| Proactive email alerts | Polls every 15 min, AI urgency filter, no spam |
+| Web search | "What's the latest on TSMC?" |
+| Google Maps | "Coffee near me" · "How long to the office?" |
+| Voice messages | Transcribed via Whisper → routed to same pipeline |
+| Photo messages | Receipts, screenshots, documents — Claude vision |
+
+### Hermes Market Intelligence
+Icarus calls Hermes on demand — no pushing, no personal data shared.
+
+| Tool | Example prompt |
+|---|---|
+| `hermes_greet` | "Greet Hermes" / "Is Hermes online?" |
+| `hermes_query` | "What does Hermes have on TSMC?" |
+| `hermes_profile` | "What do we know about Cerebras overall?" |
+| `hermes_briefing` | "Give me a market briefing" |
+| `hermes_search` | "Any signals about chip export controls?" |
+| `hermes_trends` | "What macro themes are emerging this week?" |
+| `hermes_crawl` | "Tell Hermes to run a crawl" |
+| `hermes_chart` | "Show me a signals chart" |
+
+---
+
+## Architecture
 
 ```
-ORG-EUGEN/
-├── README.md               — this file
-├── TODO.md                 — active task list (Now / Next / Backlog)
-├── ROADMAP.md              — big-picture phases and goals
-├── HANDOVER.md             — session handover notes
-├── projects/               — one file per project
-├── workflows/              — documented and automated processes
-│   ├── gcal_auth.py        — Google Calendar + Gmail OAuth setup
-│   └── weekly-review.md    — Monday review process
-└── credentials/            — OAuth tokens (gitignored, never committed)
+You (Telegram / PWA)
+         │
+         ▼
+     ICARUS AI
+     (Claude Sonnet 4.6)
+         │
+         ├── Google Calendar API
+         ├── Gmail API
+         ├── GitHub API
+         ├── LinkedIn API
+         ├── Tavily (web search)
+         ├── Google Maps API
+         ├── Upstash Redis (memory)
+         └── HTTP API ──→ HERMES AGENT
+                          (market intelligence sub-agent)
 ```
 
-## Quick Links
-- [TODO.md](TODO.md) — what needs doing
-- [ROADMAP.md](ROADMAP.md) — where we're going
-- [Active Projects](projects/README.md)
-- [Workflows](workflows/README.md)
+---
 
-## Roadmaps
-| Project | Roadmap | Status |
-|---------|---------|--------|
-| ORG EUGEN | [ROADMAP.md](ROADMAP.md) | Phase 2 complete, Phase 3 in progress |
-| SpendLens | [projects/spend-lens.md](projects/spend-lens.md) | Phase 0 complete, Phase A next |
-| SpendLens Agents | [projects/spend-lens-agents.md](projects/spend-lens-agents.md) | Design phase |
-| ICARUS Bot | [projects/icarus-bot.md](projects/icarus-bot.md) | Live — Phase 3 personal ops mostly done |
+## Tech Stack
 
-## Stack
-| Layer | Tool | Status |
-|-------|------|--------|
-| Task tracking | GitHub Issues + TODO.md | Live |
-| Weekly review | GitHub Actions (Monday 08:00 UTC) | Live |
-| ICARUS Telegram bot | Railway Hobby ($5/month) — EU West | Live |
-| ICARUS PWA | Railway (EU West) — icarusai.de, PIN auth, installable | Live |
-| Natural language + voice + images | Claude Sonnet 4.6 + Haiku 4.5 + Whisper | Live |
-| Google Calendar | Google Calendar API (read + write) | Live |
+| Layer | Technology | Status |
+|---|---|---|
+| Telegram bot | python-telegram-bot | Live |
+| PWA | FastAPI + vanilla JS, PIN auth, installable | Live — icarusai.de |
+| AI routing | Claude Sonnet 4.6 (complex) + Haiku 4.5 (fast) | Live |
+| Voice | OpenAI Whisper | Live |
+| Vision | Claude multimodal | Live |
+| Google Calendar | Google Calendar API | Live |
 | Gmail | Gmail API — read, search, full body, reply | Live |
-| GitHub Issues | GitHub API — read + create | Live |
-| Roadmap reader | GitHub API — reads any project markdown | Live |
+| GitHub | GitHub API — issues read + create | Live |
+| LinkedIn | LinkedIn API — draft + approval flow | Live |
 | Web search | Tavily API | Live |
-| Google Maps | Places API + Directions API | Live |
-| Shopping list | Conversational — add/remove/clear, Redis-backed | Live |
-| Expense tracker | Log by text or receipt photo — weekly/monthly summary | Live |
-| LinkedIn posts | Draft, preview, Post/Edit/Cancel approval flow from Telegram | Live |
-| Morning briefing | 06:00 Berlin, Claude-composed from calendar + email + issues | Live |
-| Proactive email alerts | Polls every 15 min, AI urgency filter, no spam | Live |
-| Multi-model routing | Haiku for simple, Sonnet for complex — auto-selected | Live |
-| Persistent memory | Upstash Redis (EU West) | Live |
-| HTTPS + SSL | Let's Encrypt via certbot — auto-renews | Live |
-| Sandbox environment | icarus-dev on Railway — dev branch, isolated Redis namespace | Live |
-| Health monitoring | GitHub Actions cron + `/health` endpoint — Telegram alert if bot is down | Live |
-| Self-healing | Exception → fix proposal → human review → redeploy | Live |
-| Automation | n8n / Make.com | Planned |
-| Whiteboard | Excalidraw / Miro | Planned |
+| Google Maps | Places + Directions API | Live |
+| Memory | Upstash Redis (EU West) | Live |
+| Market intelligence | Hermes Agent (separate Railway service) | Live |
+| Morning briefing | 06:00 Berlin, auto-composed | Live |
+| Email alerts | APScheduler poll every 15 min | Live |
+| Self-healing | Exception → fix proposal → human review | Live |
+| Health monitoring | GitHub Actions cron + Telegram alert | Live |
+| HTTPS | Let's Encrypt, auto-renews | Live |
+| Deployment | Railway (bot + PWA as separate services) | Live |
+
+---
+
+## Deployment
+
+Two services, one Railway project:
+
+| Service | Entry point | URL |
+|---|---|---|
+| Telegram bot | `bot/main.py` | (internal) |
+| PWA | `pwa_server.py` | [icarusai.de](https://icarusai.de) |
+
+Both auto-deploy on push to `main`.
+
+---
+
+## Environment Variables
+
+```
+TELEGRAM_BOT_TOKEN         Telegram bot
+TELEGRAM_CHAT_ID           Owner chat ID (auth filter)
+ANTHROPIC_API_KEY          Claude Sonnet + Haiku
+OPENAI_API_KEY             Whisper transcription
+GOOGLE_CREDENTIALS_JSON    Calendar + Gmail OAuth
+GITHUB_TOKEN               GitHub API
+LINKEDIN_ACCESS_TOKEN      LinkedIn API
+TAVILY_API_KEY             Web search
+GOOGLE_MAPS_API_KEY        Maps + Places
+UPSTASH_REDIS_URL          Redis memory store
+UPSTASH_REDIS_TOKEN        Redis memory store
+HERMES_URL                 https://hermes-agent-production-114e.up.railway.app
+HERMES_API_KEY             Shared secret for Hermes API auth
+PORT                       PWA server port (Railway sets this)
+```
+
+---
+
+## Project Structure
+
+```
+Personal-Assistent/
+├── bot/
+│   ├── main.py                  Telegram bot — handlers, scheduler, morning brief
+│   ├── claude_router.py         Claude tool-use loop — routes all messages
+│   ├── skills/
+│   │   ├── __init__.py          Tool registry
+│   │   ├── hermes.py            8 Hermes tools + HTTP client
+│   │   ├── email.py             Gmail reply flow
+│   │   └── linkedin.py          LinkedIn post approval flow
+│   ├── google_client.py         Calendar + Gmail
+│   ├── github_client.py         Issues + roadmap
+│   ├── linkedin_client.py       Post + approval
+│   ├── audit_log.py             Event log (Redis-backed)
+│   └── auto_debug.py            Self-healing error handler
+└── pwa_server.py                FastAPI PWA backend
+```
