@@ -1,7 +1,10 @@
 import os
 import requests
 
-HERMES_API_KEY = os.environ.get("HERMES_API_KEY", "")
+_HERMES_DEFAULT_URL = "https://hermes-agent-production-114e.up.railway.app"
+_HERMES_DEFAULT_KEY = "hermes-icarus-2026"
+
+HERMES_API_KEY = os.environ.get("HERMES_API_KEY", _HERMES_DEFAULT_KEY)
 
 TOOLS = [
     {
@@ -131,7 +134,7 @@ TOOLS = [
 
 def _get_url() -> tuple[str, str | None]:
     """Returns (url, error). Error is set if URL is missing or malformed."""
-    raw = os.environ.get("HERMES_URL", "").strip().strip('"').strip("'").rstrip("/")
+    raw = os.environ.get("HERMES_URL", _HERMES_DEFAULT_URL).strip().strip('"').strip("'").rstrip("/")
     if not raw:
         return "", "HERMES_URL is not set in environment."
     if not raw.startswith("http"):
