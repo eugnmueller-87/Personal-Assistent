@@ -101,11 +101,58 @@ TOOLS = [
             "properties": {
                 "crawler": {
                     "type": "string",
-                    "enum": ["rss", "edgar", "tavily"],
-                    "description": "Which crawler to run: 'rss' for news feeds, 'edgar' for SEC filings, 'tavily' for deep web search.",
+                    "enum": ["rss", "edgar", "tavily", "jobs", "transcripts"],
+                    "description": (
+                        "Which crawler to run: "
+                        "'rss' for news feeds, "
+                        "'edgar' for SEC filings, "
+                        "'tavily' for deep web search, "
+                        "'jobs' for job postings (hiring signals), "
+                        "'transcripts' for earnings call 8-K filings."
+                    ),
                 },
             },
             "required": ["crawler"],
+        },
+    },
+    {
+        "name": "hermes_trends",
+        "description": (
+            "Get macro theme clusters detected across all recent Hermes signals. "
+            "Use when the user asks about emerging trends, patterns, or macro themes — "
+            "'what themes are emerging this week?', 'what macro trends do you see?', "
+            "'any patterns across suppliers?', 'what are the big stories right now?'. "
+            "Returns clusters of signals grouped by theme with a synthesis for each."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "refresh": {
+                    "type": "boolean",
+                    "description": "Force a fresh cluster rebuild instead of using the cached result. Default false.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "hermes_profile",
+        "description": (
+            "Get the accumulated knowledge profile for a specific company — "
+            "not just recent signals but everything Hermes has learned over time: "
+            "signal counts, urgency breakdown, top signal types, risk flags, recent history. "
+            "Use when the user asks 'what do we know about X?', 'full profile on Y', "
+            "'tell me about Z', 'how much have we tracked on W?'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company": {
+                    "type": "string",
+                    "description": "Company name to retrieve profile for, e.g. 'TSMC', 'Cerebras', 'OpenAI'.",
+                },
+            },
+            "required": ["company"],
         },
     },
     {
@@ -154,6 +201,83 @@ def _format_item(item: dict) -> str:
     if reason:
         line += f"\n   {reason[:120]}"
     return line
+
+
+def _hermes_trends(refresh: bool = False) -> str:
+    url, err = _get_url()
+    if err:
+        return err
+    try:
+        params = {"refresh": "true"} if refresh else {}
+        r = requests.get(f"{url}/clusters", params=params, headers=_headers(), timeout=45)
+        r.raise_for_status()
+        data = r.json()
+        clusters = data.get("clusters", [])
+        if not clusters:
+            return "No macro clusters detected yet — needs more significant signals. Try running a crawl first."
+        cached_note = " (cached)" if data.get("cached") else " (fresh)"
+        lines = [f"Hermes macro trends{cached_note} — {len(clusters)} clusters:"]
+        for i, cluster in enumerate(clusters, 1):
+            companies = ", ".join(cluster.get("companies", []))
+            urg = cluster.get("urgency", {})
+            urg_str = f"🔴{urg.get('HIGH', 0)} 🟡{urg.get('MEDIUM', 0)} 🟢{urg.get('LOW', 0)}"
+            lines.append(f"\n{i}. {cluster['label']}  [{urg_str}]")
+            lines.append(f"   {cluster['synthesis']}")
+            lines.append(f"   Companies: {companies}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Hermes trends failed: {e}"
+
+
+def _hermes_profile(company: str) -> str:
+    url, err = _get_url()
+    if err:
+        return err
+    try:
+        r = requests.get(f"{url}/profile/{company}", headers=_headers(), timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        profile = data.get("profile")
+        if not profile:
+            return data.get("message", f"No profile for {company} yet.")
+        lines = [f"Profile: {data['company']}"]
+        cat = profile.get("category", "")
+        tier = profile.get("tier", "")
+        if cat or tier:
+            lines.append(f"Category: {cat}  |  Tier {tier}")
+        lines.append(
+            f"Signals: {profile['total_signals']} total, {profile['significant_signals']} significant"
+        )
+        lines.append(
+            f"First seen: {profile.get('first_seen', '—')[:10]}  |  "
+            f"Last updated: {profile.get('last_updated', '—')[:10]}"
+        )
+        urg = profile.get("urgency_counts", {})
+        lines.append(
+            f"Urgency: 🔴 {urg.get('HIGH', 0)} HIGH · "
+            f"🟡 {urg.get('MEDIUM', 0)} MEDIUM · "
+            f"🟢 {urg.get('LOW', 0)} LOW"
+        )
+        sig_types = sorted(
+            profile.get("signal_type_counts", {}).items(), key=lambda x: x[1], reverse=True
+        )[:3]
+        if sig_types:
+            lines.append(f"Top signal types: {', '.join(f'{k} ({v})' for k, v in sig_types)}")
+        if profile.get("risk_flags"):
+            lines.append("\nRisk flags:")
+            for flag in profile["risk_flags"][:3]:
+                lines.append(f"  ⚠️ {flag['title'][:80]}  ({flag['published'][:10]})")
+                if flag.get("reason"):
+                    lines.append(f"     {flag['reason'][:120]}")
+        if profile.get("recent_signals"):
+            lines.append("\nRecent signals:")
+            emo = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}
+            for sig in profile["recent_signals"][:5]:
+                e = emo.get(sig.get("urgency", ""), "📰")
+                lines.append(f"  {e} {sig['title'][:80]}  ({sig['published'][:10]})")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Hermes profile failed: {e}"
 
 
 def _hermes_chart(chart_type: str) -> str:
@@ -261,6 +385,10 @@ def handle(name: str, inputs: dict, user_id: str = "default"):
         return _hermes_chart(inputs.get("chart_type", "signals"))
     if name == "hermes_query":
         return _hermes_query(inputs["company"], inputs.get("limit", 5))
+    if name == "hermes_trends":
+        return _hermes_trends(inputs.get("refresh", False))
+    if name == "hermes_profile":
+        return _hermes_profile(inputs["company"])
     if name == "hermes_briefing":
         return _hermes_briefing(inputs.get("limit", 10))
     if name == "hermes_search":

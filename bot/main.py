@@ -287,15 +287,27 @@ async def handle_reply_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await query.message.reply_text("Post cancelled.")
 
 
+def _hermes_morning_signals() -> str:
+    """Fetch top 3 HIGH-urgency Hermes signals for the morning brief. Never raises."""
+    try:
+        from skills.hermes import _hermes_briefing
+        return _hermes_briefing(limit=3)
+    except Exception as e:
+        logging.warning(f"[ICARUS] hermes morning signals failed: {e}")
+        return ""
+
+
 async def morning_briefing(context):
     try:
         cal = get_today_events()
         mail = get_unread_emails(since_minutes=1440)
         iss = get_open_issues()
         brief = compose_morning_brief(cal, mail, iss)
+        hermes_block = _hermes_morning_signals()
+        market_section = f"\n\n📡 Market signals:\n{hermes_block}" if hermes_block else ""
         await context.bot.send_message(
             chat_id=os.environ["TELEGRAM_CHAT_ID"],
-            text=f"☀️ Morning brief\n\n{brief}",
+            text=f"☀️ Morning brief\n\n{brief}{market_section}",
         )
         log_event("morning_briefing", "sent ok")
     except Exception as e:
