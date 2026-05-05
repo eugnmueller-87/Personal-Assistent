@@ -236,17 +236,24 @@ def route(user_message: str, user_id: str = "default") -> str:
         messages=history,
     )
 
+    chart_url = None
+
     while response.stop_reason == "tool_use":
         assistant_content = response.content
         tool_results = []
 
         for block in assistant_content:
             if block.type == "tool_use":
-                result = _wrap_external(call_tool(block.name, block.input, user_id))
+                raw = call_tool(block.name, block.input, user_id)
+                if isinstance(raw, str) and raw.startswith("CHART_URL:"):
+                    chart_url = raw.replace("CHART_URL:", "").strip()
+                    wrapped = _wrap_external(chart_url)
+                else:
+                    wrapped = _wrap_external(raw)
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
-                    "content": result,
+                    "content": wrapped,
                 })
 
         history.append({"role": "assistant", "content": assistant_content})
@@ -272,7 +279,7 @@ def route(user_message: str, user_id: str = "default") -> str:
     _history[user_id] = _clean_for_storage(history)
 
     _save_history(user_id)
-    return final
+    return f"CHART_URL:{chart_url}\n{final}" if chart_url else final
 
 
 def compose_morning_brief(cal: str, mail: str, issues: str) -> str:
