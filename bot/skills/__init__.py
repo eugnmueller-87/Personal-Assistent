@@ -1,13 +1,14 @@
 import logging
-from . import calendar, email, github, search, maps, shopping, linkedin
+import importlib
 from audit_log import log_event
 
-try:
-    from . import hermes as hermes
-    _SKILLS = [calendar, email, github, search, maps, shopping, linkedin, hermes]
-except Exception as e:
-    logging.error(f"[ICARUS] hermes skill failed to load: {e}")
-    _SKILLS = [calendar, email, github, search, maps, shopping, linkedin]
+_SKILLS = []
+for _mod in ["calendar", "email", "github", "search", "maps", "shopping", "linkedin", "hermes"]:
+    try:
+        _SKILLS.append(importlib.import_module(f".{_mod}", package="skills"))
+        logging.info(f"[ICARUS] skill loaded: {_mod}")
+    except Exception as e:
+        logging.error(f"[ICARUS] skill failed to load: {_mod} — {e}")
 
 
 def get_all_tools() -> list:
