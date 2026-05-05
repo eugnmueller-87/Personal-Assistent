@@ -59,6 +59,15 @@ TOOLS = [
         },
     },
     {
+        "name": "hermes_greet",
+        "description": (
+            "Ask Hermes to introduce himself and share his current status. "
+            "Use when the user asks Icarus to greet Hermes, check if Hermes is alive, "
+            "or wants to know what Hermes is currently tracking."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
         "name": "hermes_briefing",
         "description": (
             "Get the latest significant market intelligence signals from Hermes "
@@ -165,7 +174,21 @@ def _hermes_briefing(limit: int = 10) -> str:
     return "\n".join(lines)
 
 
+def _hermes_greet() -> str:
+    if not HERMES_URL:
+        return "HERMES_URL not set — cannot reach Hermes."
+    try:
+        r = requests.get(f"{HERMES_URL}/greet", timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        return f"{data['message']}\n\n{data['latest']}"
+    except Exception as e:
+        return f"Hermes did not respond: {e}"
+
+
 def handle(name: str, inputs: dict, user_id: str = "default"):
+    if name == "hermes_greet":
+        return _hermes_greet()
     if name == "build_miro_board":
         return _build_miro_board(inputs.get("board_type", "landscape"), inputs.get("category"))
     if name == "hermes_query":

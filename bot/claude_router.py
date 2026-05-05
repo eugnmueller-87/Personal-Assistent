@@ -184,6 +184,8 @@ def route(user_message: str, user_id: str = "default") -> str:
         "ICARUS will automatically convert known names to the correct LinkedIn format.\n\n"
         "Be concise and direct. No unnecessary filler. No markdown formatting — plain text only.\n\n"
         "Hermes rules:\n"
+        "- hermes_greet: use when the user asks you to greet Hermes, say hello to Hermes, "
+        "or check if Hermes is online. Relay his response as if passing a message between two agents who know each other.\n"
         "- build_miro_board: use when the user asks to build/create/generate a Miro board, "
         "supplier landscape, signal board, or market map. "
         "Use board_type='landscape' for supplier overviews, board_type='signals' for market signals. "
