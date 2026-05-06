@@ -2,10 +2,10 @@ import os
 import asyncio
 import tempfile
 import logging
-import threading
+import uvicorn
 from datetime import time as dtime
 from zoneinfo import ZoneInfo
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from fastapi import FastAPI, Request, Response
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from openai import OpenAI
@@ -22,24 +22,6 @@ _alerted_email_ids: set = set()
 
 logging.basicConfig(level=logging.INFO)
 
-
-class _HealthHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == "/health":
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"ok")
-        else:
-            self.send_response(404)
-            self.end_headers()
-
-    def log_message(self, *args):
-        pass
-
-
-def _start_health_server():
-    port = int(os.environ.get("PORT", 8080))
-    HTTPServer(("0.0.0.0", port), _HealthHandler).serve_forever()
 
 
 def _allowed_filter():
@@ -413,9 +395,10 @@ def main():
     from skills import get_all_tools
     _loaded_tools = get_all_tools()
     print(f"[ICARUS] Loaded {len(_loaded_tools)} tools: {[t['name'] for t in _loaded_tools]}", flush=True)
-    threading.Thread(target=_start_health_server, daemon=True).start()
 
     token = os.environ["TELEGRAM_BOT_TOKEN"]
+    webhook_url = os.environ["WEBHOOK_URL"].rstrip("/")
+
     app = Application.builder().token(token).build()
 
     auth = _allowed_filter()
@@ -441,7 +424,34 @@ def main():
     app.job_queue.run_daily(hermes_weekly_digest, time=dtime(hour=18, minute=30, tzinfo=BERLIN), days=(6,))
     app.job_queue.run_repeating(check_new_emails, interval=900, first=60)
 
-    app.run_polling()
+    fast_app = FastAPI()
+
+    @fast_app.get("/health")
+    async def health():
+        return Response("ok", media_type="text/plain")
+
+    @fast_app.post("/telegram")
+    async def telegram_webhook(request: Request):
+        data = await request.json()
+        update = Update.de_json(data, app.bot)
+        await app.update_queue.put(update)
+        return Response("ok", media_type="text/plain")
+
+    @fast_app.on_event("startup")
+    async def on_startup():
+        await app.initialize()
+        await app.start()
+        await app.bot.set_webhook(url=f"{webhook_url}/telegram", drop_pending_updates=True)
+        logging.info(f"[ICARUS] Webhook registered at {webhook_url}/telegram")
+
+    @fast_app.on_event("shutdown")
+    async def on_shutdown():
+        await app.bot.delete_webhook()
+        await app.stop()
+        await app.shutdown()
+
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(fast_app, host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":
