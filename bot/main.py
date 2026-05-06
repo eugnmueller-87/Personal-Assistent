@@ -348,9 +348,7 @@ async def check_new_emails(context):
                 text=f"📧 Heads up:\n\n{formatted}",
             )
     except Exception as e:
-        import traceback as _tb
         logging.error(f"[ICARUS] check_new_emails failed: {e}")
-        asyncio.create_task(handle_error(e, _tb.format_exc()))
 
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
