@@ -18,6 +18,41 @@ SCOPES = [
 
 
 _creds = None
+_REDIS_TOKEN_KEY = "icarus:google:refresh_token"
+
+
+def _redis_client():
+    try:
+        from upstash_redis import Redis
+        return Redis(
+            url=os.environ["UPSTASH_REDIS_URL"],
+            token=os.environ["UPSTASH_REDIS_TOKEN"],
+        )
+    except Exception:
+        return None
+
+
+def _load_refresh_token() -> str:
+    """Return refresh token from Redis (if saved) else fall back to env var."""
+    r = _redis_client()
+    if r:
+        try:
+            saved = r.get(_REDIS_TOKEN_KEY)
+            if saved:
+                return saved
+        except Exception:
+            pass
+    return os.environ["GOOGLE_REFRESH_TOKEN"]
+
+
+def _save_refresh_token(token: str):
+    """Persist rotated refresh token to Redis so restarts stay valid."""
+    r = _redis_client()
+    if r:
+        try:
+            r.set(_REDIS_TOKEN_KEY, token)
+        except Exception:
+            pass
 
 
 def get_creds():
@@ -28,18 +63,22 @@ def get_creds():
     if _creds is not None and _creds.expired and _creds.refresh_token:
         try:
             _creds.refresh(Request())
+            if _creds.refresh_token:
+                _save_refresh_token(_creds.refresh_token)
             return _creds
         except Exception:
-            _creds = None  # refresh token revoked — rebuild from env
+            _creds = None  # refresh token revoked — rebuild from store
     _creds = Credentials(
         token=None,
-        refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
+        refresh_token=_load_refresh_token(),
         token_uri="https://oauth2.googleapis.com/token",
         client_id=os.environ["GOOGLE_CLIENT_ID"],
         client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
         scopes=SCOPES,
     )
     _creds.refresh(Request())
+    if _creds.refresh_token:
+        _save_refresh_token(_creds.refresh_token)
     return _creds
 
 
