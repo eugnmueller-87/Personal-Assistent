@@ -35,15 +35,22 @@ def _redis_client():
 
 def _save_creds(creds: Credentials):
     """Persist full credentials (access token + refresh token + expiry) to Redis."""
-    import json
+    import json, time as _time
     r = _redis_client()
     if not r:
         return
     try:
+        expiry_ts = None
+        if creds.expiry:
+            # Store as Unix timestamp to avoid naive/aware datetime confusion
+            if creds.expiry.tzinfo is None:
+                expiry_ts = creds.expiry.replace(tzinfo=timezone.utc).timestamp()
+            else:
+                expiry_ts = creds.expiry.timestamp()
         data = {
             "token": creds.token,
             "refresh_token": creds.refresh_token,
-            "expiry": creds.expiry.isoformat() if creds.expiry else None,
+            "expiry_ts": expiry_ts,
         }
         r.set(_REDIS_CREDS_KEY, json.dumps(data))
     except Exception:
@@ -52,7 +59,7 @@ def _save_creds(creds: Credentials):
 
 def _load_creds_from_redis() -> "Credentials | None":
     """Load credentials from Redis. Returns None if missing, expired, or invalid."""
-    import json
+    import json, time as _time
     r = _redis_client()
     if not r:
         return None
@@ -61,11 +68,20 @@ def _load_creds_from_redis() -> "Credentials | None":
         if not raw:
             return None
         data = json.loads(raw)
-        expiry = None
-        if data.get("expiry"):
-            expiry = datetime.fromisoformat(data["expiry"])
+        # Support both legacy "expiry" ISO string and new "expiry_ts" Unix timestamp
+        expiry_ts = data.get("expiry_ts")
+        if expiry_ts is None and data.get("expiry"):
+            try:
+                exp_str = data["expiry"].replace("Z", "+00:00")
+                dt = datetime.fromisoformat(exp_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                expiry_ts = dt.timestamp()
+            except Exception:
+                expiry_ts = None
+        now_ts = _time.time()
         # Only reuse if access token is valid for at least 5 more minutes
-        if expiry and expiry > datetime.now(timezone.utc) + timedelta(minutes=5):
+        if expiry_ts and expiry_ts > now_ts + 300:
             creds = Credentials(
                 token=data["token"],
                 refresh_token=data.get("refresh_token") or os.environ["GOOGLE_REFRESH_TOKEN"],
@@ -74,7 +90,7 @@ def _load_creds_from_redis() -> "Credentials | None":
                 client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
                 scopes=SCOPES,
             )
-            creds.expiry = expiry
+            creds.expiry = datetime.fromtimestamp(expiry_ts, tz=timezone.utc).replace(tzinfo=None)
             return creds
         # Access token expired — return stub with refresh_token so caller can refresh
         if data.get("refresh_token"):
