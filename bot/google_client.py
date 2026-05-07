@@ -18,7 +18,7 @@ SCOPES = [
 
 
 _creds = None
-_REDIS_TOKEN_KEY = "icarus:google:refresh_token"
+_REDIS_CREDS_KEY = "icarus:google:credentials"
 
 
 def _redis_client():
@@ -26,7 +26,6 @@ def _redis_client():
         from upstash_redis import Redis
         url = os.environ["UPSTASH_REDIS_URL"]
         token = os.environ["UPSTASH_REDIS_TOKEN"]
-        # Railway stores token as "bearer@host:port" — strip the suffix
         if "@" in token:
             token = token.split("@")[0]
         return Redis(url=url, token=token)
@@ -34,53 +33,96 @@ def _redis_client():
         return None
 
 
-def _load_refresh_token() -> str:
-    """Return refresh token from Redis (if saved) else fall back to env var."""
+def _save_creds(creds: Credentials):
+    """Persist full credentials (access token + refresh token + expiry) to Redis."""
+    import json
     r = _redis_client()
-    if r:
-        try:
-            saved = r.get(_REDIS_TOKEN_KEY)
-            if saved:
-                return saved
-        except Exception:
-            pass
-    return os.environ["GOOGLE_REFRESH_TOKEN"]
+    if not r:
+        return
+    try:
+        data = {
+            "token": creds.token,
+            "refresh_token": creds.refresh_token,
+            "expiry": creds.expiry.isoformat() if creds.expiry else None,
+        }
+        r.set(_REDIS_CREDS_KEY, json.dumps(data))
+    except Exception:
+        pass
 
 
-def _save_refresh_token(token: str):
-    """Persist rotated refresh token to Redis so restarts stay valid."""
+def _load_creds_from_redis() -> "Credentials | None":
+    """Load credentials from Redis. Returns None if missing, expired, or invalid."""
+    import json
     r = _redis_client()
-    if r:
-        try:
-            r.set(_REDIS_TOKEN_KEY, token)
-        except Exception:
-            pass
+    if not r:
+        return None
+    try:
+        raw = r.get(_REDIS_CREDS_KEY)
+        if not raw:
+            return None
+        data = json.loads(raw)
+        expiry = None
+        if data.get("expiry"):
+            expiry = datetime.fromisoformat(data["expiry"])
+        # Only reuse if access token is valid for at least 5 more minutes
+        if expiry and expiry > datetime.now(timezone.utc) + timedelta(minutes=5):
+            creds = Credentials(
+                token=data["token"],
+                refresh_token=data.get("refresh_token") or os.environ["GOOGLE_REFRESH_TOKEN"],
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=os.environ["GOOGLE_CLIENT_ID"],
+                client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
+                scopes=SCOPES,
+            )
+            creds.expiry = expiry
+            return creds
+        # Access token expired — return stub with refresh_token so caller can refresh
+        if data.get("refresh_token"):
+            return Credentials(
+                token=None,
+                refresh_token=data["refresh_token"],
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=os.environ["GOOGLE_CLIENT_ID"],
+                client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
+                scopes=SCOPES,
+            )
+    except Exception:
+        pass
+    return None
 
 
 def get_creds():
     global _creds
     if _creds is not None and _creds.valid:
         return _creds
-    # Reuse same object when expired so token rotation is preserved
-    if _creds is not None and _creds.expired and _creds.refresh_token:
+
+    # Attempt to refresh if we have an in-memory expired cred
+    if _creds is not None and _creds.refresh_token:
         try:
             _creds.refresh(Request())
-            if _creds.refresh_token:
-                _save_refresh_token(_creds.refresh_token)
+            _save_creds(_creds)
             return _creds
         except Exception:
-            _creds = None  # refresh token revoked — rebuild from store
-    _creds = Credentials(
-        token=None,
-        refresh_token=_load_refresh_token(),
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.environ["GOOGLE_CLIENT_ID"],
-        client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
-        scopes=SCOPES,
-    )
+            _creds = None
+
+    # Try restoring from Redis — fast path that avoids unnecessary refreshes on restart
+    _creds = _load_creds_from_redis()
+    if _creds is not None and _creds.valid:
+        return _creds
+
+    # Need to refresh — either Redis cred is expired or Redis is empty
+    if _creds is None:
+        _creds = Credentials(
+            token=None,
+            refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=os.environ["GOOGLE_CLIENT_ID"],
+            client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
+            scopes=SCOPES,
+        )
+
     _creds.refresh(Request())
-    if _creds.refresh_token:
-        _save_refresh_token(_creds.refresh_token)
+    _save_creds(_creds)
     return _creds
 
 
