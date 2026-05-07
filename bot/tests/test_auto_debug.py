@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch, MagicMock
 from auto_debug import _extract_file_path, _create_pr
 

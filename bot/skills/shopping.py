@@ -10,21 +10,32 @@ _CLEANING = ["shampoo","waschmittel","spülmittel","reiniger","seife","soap","za
 
 def _item_emoji(item: str) -> str:
     w = item.lower()
-    if any(k in w for k in _DAIRY):    return "🥛"
-    if any(k in w for k in _PRODUCE):  return "🥬"
-    if any(k in w for k in _BAKERY):   return "🍞"
-    if any(k in w for k in _MEAT):     return "🥩"
-    if any(k in w for k in _DRINKS):   return "🥤"
-    if any(k in w for k in _SNACKS):   return "🍫"
-    if any(k in w for k in _CLEANING): return "🧴"
+    if any(k in w for k in _DAIRY):
+        return "🥛"
+    if any(k in w for k in _PRODUCE):
+        return "🥬"
+    if any(k in w for k in _BAKERY):
+        return "🍞"
+    if any(k in w for k in _MEAT):
+        return "🥩"
+    if any(k in w for k in _DRINKS):
+        return "🥤"
+    if any(k in w for k in _SNACKS):
+        return "🍫"
+    if any(k in w for k in _CLEANING):
+        return "🧴"
     return "🛍️"
 
 def _store_emoji(store: str) -> str:
     w = store.lower()
-    if any(k in w for k in ["restaurant","café","cafe","pizza","burger","sushi","bistro","bar","grill","ristorante","küche","kitchen"]): return "🍽️"
-    if any(k in w for k in ["tankstelle","shell","aral","bp","total","esso"]):                                                           return "⛽"
-    if any(k in w for k in ["apotheke","pharmacy"]):                                                                                     return "💊"
-    if any(k in w for k in ["rewe","aldi","lidl","edeka","kaufland","penny","netto","spar","alnatura","bio"]):                           return "🏪"
+    if any(k in w for k in ["restaurant","café","cafe","pizza","burger","sushi","bistro","bar","grill","ristorante","küche","kitchen"]):
+        return "🍽️"
+    if any(k in w for k in ["tankstelle","shell","aral","bp","total","esso"]):
+        return "⛽"
+    if any(k in w for k in ["apotheke","pharmacy"]):
+        return "💊"
+    if any(k in w for k in ["rewe","aldi","lidl","edeka","kaufland","penny","netto","spar","alnatura","bio"]):
+        return "🏪"
     return "🛍️"
 
 TOOLS = [

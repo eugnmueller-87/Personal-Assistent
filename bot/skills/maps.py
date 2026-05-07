@@ -1,4 +1,4 @@
-from maps_client import find_place, get_directions, maps_link, directions_link
+from maps_client import find_place, get_directions
 
 TOOLS = [
     {

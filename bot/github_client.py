@@ -64,5 +64,5 @@ def get_roadmap(project="org-eugen"):
 
     import base64
     content = base64.b64decode(response.json()["content"]).decode("utf-8")
-    lines = [l for l in content.split("\n") if l.strip()]
+    lines = [line for line in content.split("\n") if line.strip()]
     return "\n".join(lines[:40])

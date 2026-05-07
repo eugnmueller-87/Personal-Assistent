@@ -1,4 +1,3 @@
-import pytest
 from linkedin_client import _apply_mentions, KNOWN_MENTIONS
 
 
