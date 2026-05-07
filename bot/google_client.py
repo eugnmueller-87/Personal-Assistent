@@ -1,19 +1,25 @@
 import os
 import re
-import base64
-import time
+import imaplib
+import smtplib
+import email as _email_lib
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.header import decode_header as _decode_header
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
 TIMEZONE = "Europe/Berlin"
 
+GMAIL_USER = os.environ.get("GMAIL_USER", "eugnmueller@googlemail.com")
+IMAP_HOST = "imap.gmail.com"
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
 
 SCOPES = [
     "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/gmail.modify",
 ]
 
 
@@ -235,37 +241,91 @@ def get_this_week_events():
     return "\n".join(lines)
 
 
+def _imap_conn():
+    """Open an authenticated IMAP connection."""
+    password = os.environ["GMAIL_APP_PASSWORD"]
+    conn = imaplib.IMAP4_SSL(IMAP_HOST)
+    conn.login(GMAIL_USER, password)
+    return conn
+
+
+def _decode_str(value: str) -> str:
+    parts = _decode_header(value)
+    result = []
+    for raw, charset in parts:
+        if isinstance(raw, bytes):
+            result.append(raw.decode(charset or "utf-8", errors="replace"))
+        else:
+            result.append(raw)
+    return "".join(result)
+
+
+def _extract_text_from_message(msg) -> str:
+    """Extract plain text body from an email.Message object."""
+    if msg.is_multipart():
+        for part in msg.walk():
+            if part.get_content_type() == "text/plain":
+                payload = part.get_payload(decode=True)
+                if payload:
+                    return payload.decode(part.get_content_charset() or "utf-8", errors="replace").strip()
+        for part in msg.walk():
+            if part.get_content_type() == "text/html":
+                payload = part.get_payload(decode=True)
+                if payload:
+                    html = payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+                    return re.sub(r"<[^>]+>", " ", html).strip()
+    else:
+        payload = msg.get_payload(decode=True)
+        if payload:
+            return payload.decode(msg.get_content_charset() or "utf-8", errors="replace").strip()
+    return ""
+
+
+def _fetch_envelope(conn, uid: bytes) -> dict:
+    """Fetch From/Subject headers for a single UID."""
+    _, data = conn.uid("fetch", uid, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT MESSAGE-ID REFERENCES)])")
+    if not data or not data[0]:
+        return {}
+    raw = data[0][1] if isinstance(data[0], tuple) else data[0]
+    msg = _email_lib.message_from_bytes(raw)
+    return {
+        "from": _decode_str(msg.get("From", "")),
+        "subject": _decode_str(msg.get("Subject", "(no subject)")),
+        "message_id": msg.get("Message-ID", ""),
+        "references": msg.get("References", ""),
+    }
+
+
 def get_recent_emails_with_ids(since_minutes=20):
-    """Returns (formatted_text, set_of_message_ids) for alert deduplication."""
-    creds = get_creds()
-    service = build("gmail", "v1", credentials=creds)
+    """Returns (formatted_text, set_of_uid_strings) for alert deduplication."""
+    try:
+        conn = _imap_conn()
+    except Exception as e:
+        raise RuntimeError(f"IMAP login failed: {e}") from e
 
-    since_ts = int(time.time()) - (since_minutes * 60)
-    q = (
-        f"is:unread is:important after:{since_ts} "
-        "-category:promotions -category:social -category:updates "
-        "-category:forums -from:noreply -from:no-reply -from:donotreply -from:notifications"
-    )
+    try:
+        conn.select("INBOX")
+        since_dt = datetime.utcnow() - timedelta(minutes=since_minutes)
+        since_str = since_dt.strftime("%d-%b-%Y")
+        _, data = conn.uid("search", None, f'(UNSEEN SINCE "{since_str}")')
+        uids = data[0].split() if data[0] else []
+        if not uids:
+            return None, set()
 
-    result = service.users().messages().list(userId="me", q=q, maxResults=5).execute()
-    messages = result.get("messages", [])
-
-    if not messages:
-        return None, set()
-
-    msg_ids = {m["id"] for m in messages}
-    lines = []
-    for msg in messages:
-        detail = service.users().messages().get(
-            userId="me", id=msg["id"], format="metadata",
-            metadataHeaders=["From", "Subject"],
-        ).execute()
-        headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
-        sender = headers.get("From", "Unknown").split("<")[0].strip()
-        subject = headers.get("Subject", "(no subject)")
-        lines.append(f"• {sender}: {subject}")
-
-    return "\n".join(lines), msg_ids
+        uids = uids[-5:]  # newest 5
+        msg_ids = {uid.decode() for uid in uids}
+        lines = []
+        for uid in uids:
+            env = _fetch_envelope(conn, uid)
+            sender = env.get("from", "Unknown").split("<")[0].strip()
+            subject = env.get("subject", "(no subject)")
+            lines.append(f"• {sender}: {subject}")
+        return "\n".join(lines), msg_ids
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
 
 
 def create_calendar_event(
@@ -376,153 +436,233 @@ def find_calendar_events(query: str, date: str = None) -> str:
 
 
 def get_unread_emails(max_results=10, since_minutes=None):
-    creds = get_creds()
-    service = build("gmail", "v1", credentials=creds)
+    try:
+        conn = _imap_conn()
+    except Exception as e:
+        raise RuntimeError(f"IMAP login failed: {e}") from e
 
-    base = (
-        "is:unread is:important "
-        "-category:promotions -category:social -category:updates "
-        "-category:forums -from:noreply -from:no-reply -from:donotreply -from:notifications"
-    )
+    try:
+        conn.select("INBOX")
+        if since_minutes:
+            since_dt = datetime.utcnow() - timedelta(minutes=since_minutes)
+            since_str = since_dt.strftime("%d-%b-%Y")
+            _, data = conn.uid("search", None, f'(UNSEEN SINCE "{since_str}")')
+            label = f"last {since_minutes} min"
+        else:
+            since_dt = datetime.utcnow() - timedelta(days=3)
+            since_str = since_dt.strftime("%d-%b-%Y")
+            _, data = conn.uid("search", None, f'(UNSEEN SINCE "{since_str}")')
+            label = "last 3 days"
 
-    if since_minutes:
-        since_ts = int(time.time()) - (since_minutes * 60)
-        q = f"{base} after:{since_ts}"
-    else:
-        q = f"{base} newer_than:3d"
+        uids = data[0].split() if data[0] else []
+        if not uids:
+            return f"No unread emails in the {label}."
 
-    result = service.users().messages().list(
-        userId="me",
-        q=q,
-        maxResults=max_results,
-    ).execute()
+        uids = uids[-max_results:]
+        total = len(uids)
+        lines = []
+        for uid in uids[-5:]:
+            env = _fetch_envelope(conn, uid)
+            sender = env.get("from", "Unknown").split("<")[0].strip()
+            subject = env.get("subject", "(no subject)")
+            lines.append(f"• [ID:{uid.decode()}] {sender}: {subject}")
+        if total > 5:
+            lines.append(f"... and {total - 5} more")
+        return f"Unread emails ({label}): {total}\n" + "\n".join(lines)
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
 
-    messages = result.get("messages", [])
-    if not messages:
-        label = f"last {since_minutes} minutes" if since_minutes else "last 3 days"
-        return f"No unread important emails in the {label}."
 
-    lines = []
-    for msg in messages[:5]:
-        detail = service.users().messages().get(
-            userId="me", id=msg["id"], format="metadata",
-            metadataHeaders=["From", "Subject"],
-        ).execute()
-        headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
-        sender = headers.get("From", "Unknown").split("<")[0].strip()
-        subject = headers.get("Subject", "(no subject)")
-        lines.append(f"• [ID:{msg['id']}] {sender}: {subject}")
+def _gmail_query_to_imap(query: str) -> str:
+    """Translate common Gmail query syntax to IMAP search criteria."""
+    criteria = []
+    folder = "INBOX"
 
-    if len(messages) > 5:
-        lines.append(f"... and {len(messages) - 5} more")
+    # Extract folder hints before building criteria
+    if "in:sent" in query:
+        folder = '"[Gmail]/Sent Mail"'
+        query = query.replace("in:sent", "").strip()
+    elif "in:anywhere" in query:
+        folder = "ALL"
+        query = query.replace("in:anywhere", "").strip()
 
-    label = f"last {since_minutes} min" if since_minutes else "last 3 days"
-    return f"Unread important ({label}): {len(messages)}\n" + "\n".join(lines)
+    # from:name → FROM "name"
+    for m in re.finditer(r'from:(\S+)', query):
+        criteria.append(f'FROM "{m.group(1)}"')
+    query = re.sub(r'from:\S+', '', query)
+
+    # to:name → TO "name"
+    for m in re.finditer(r'to:(\S+)', query):
+        criteria.append(f'TO "{m.group(1)}"')
+    query = re.sub(r'to:\S+', '', query)
+
+    # subject:text → SUBJECT "text"
+    for m in re.finditer(r'subject:(\S+)', query):
+        criteria.append(f'SUBJECT "{m.group(1)}"')
+    query = re.sub(r'subject:\S+', '', query)
+
+    # newer_than:Nd → SINCE date
+    m = re.search(r'newer_than:(\d+)d', query)
+    if m:
+        since_dt = datetime.utcnow() - timedelta(days=int(m.group(1)))
+        criteria.append(f'SINCE "{since_dt.strftime("%d-%b-%Y")}"')
+        query = re.sub(r'newer_than:\d+d', '', query)
+
+    # Remaining words become TEXT search
+    remainder = query.strip()
+    if remainder:
+        criteria.append(f'TEXT "{remainder}"')
+
+    imap_criteria = " ".join(criteria) if criteria else "ALL"
+    return folder, imap_criteria
 
 
 def search_emails(query: str, max_results: int = 5) -> str:
-    """Search emails. Returns full body when result is a single email, metadata list otherwise."""
-    creds = get_creds()
-    service = build("gmail", "v1", credentials=creds)
+    """Search emails using IMAP. Returns full body for single match, metadata list otherwise."""
+    try:
+        conn = _imap_conn()
+    except Exception as e:
+        raise RuntimeError(f"IMAP login failed: {e}") from e
 
-    result = service.users().messages().list(
-        userId="me", q=query, maxResults=max_results,
-    ).execute()
-    messages = result.get("messages", [])
+    try:
+        folder, criteria = _gmail_query_to_imap(query)
+        if folder == "ALL":
+            # Search all folders — try INBOX + Sent
+            all_uids = []
+            for f in ("INBOX", '"[Gmail]/Sent Mail"'):
+                try:
+                    conn.select(f, readonly=True)
+                    _, data = conn.uid("search", None, criteria)
+                    uids = data[0].split() if data[0] else []
+                    all_uids.extend([(uid, f) for uid in uids])
+                except Exception:
+                    pass
+        else:
+            conn.select(folder, readonly=True)
+            _, data = conn.uid("search", None, criteria)
+            uids = data[0].split() if data[0] else []
+            all_uids = [(uid, folder) for uid in uids]
 
-    if not messages:
-        return f"No emails found for query: {query}"
+        if not all_uids:
+            return f"No emails found for: {query}"
 
-    if len(messages) == 1:
-        return get_email_body(messages[0]["id"])
+        all_uids = all_uids[-max_results:]
 
-    lines = []
-    for msg in messages:
-        detail = service.users().messages().get(
-            userId="me", id=msg["id"], format="metadata",
-            metadataHeaders=["From", "To", "Subject", "Date"],
-        ).execute()
-        headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
-        sender = headers.get("From", "").split("<")[0].strip()
-        subject = headers.get("Subject", "(no subject)")
-        date = headers.get("Date", "")[:16]
-        lines.append(f"• [ID:{msg['id']}] {date} | From: {sender} | {subject}")
+        if len(all_uids) == 1:
+            uid, f = all_uids[0]
+            conn.select(f, readonly=True)
+            return _get_body_by_uid(conn, uid)
 
-    return "\n".join(lines)
-
-
-def _extract_plain_text(payload: dict) -> str:
-    mime = payload.get("mimeType", "")
-    if mime == "text/plain":
-        data = payload.get("body", {}).get("data", "")
-        if data:
-            return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace").strip()
-    for part in payload.get("parts", []):
-        text = _extract_plain_text(part)
-        if text:
-            return text
-    if mime == "text/html":
-        data = payload.get("body", {}).get("data", "")
-        if data:
-            html = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-            return re.sub(r"<[^>]+>", " ", html).strip()
-    return ""
+        lines = []
+        for uid, f in all_uids:
+            try:
+                conn.select(f, readonly=True)
+                env = _fetch_envelope(conn, uid)
+                sender = env.get("from", "").split("<")[0].strip()
+                subject = env.get("subject", "(no subject)")
+                lines.append(f"• [ID:{uid.decode()}] From: {sender} | {subject}")
+            except Exception:
+                pass
+        return "\n".join(lines)
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
 
 
-def get_email_body(message_id: str) -> str:
-    """Fetch the full plain-text body of an email by message ID."""
-    creds = get_creds()
-    service = build("gmail", "v1", credentials=creds)
-
-    detail = service.users().messages().get(
-        userId="me", id=message_id, format="full",
-    ).execute()
-
-    headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
-    sender = headers.get("From", "Unknown").split("<")[0].strip()
-    subject = headers.get("Subject", "(no subject)")
-    body = _extract_plain_text(detail["payload"]) or "(no body)"
-
+def _get_body_by_uid(conn, uid: bytes) -> str:
+    """Fetch full body of a message by IMAP UID (conn must already be selected)."""
+    _, data = conn.uid("fetch", uid, "(RFC822)")
+    if not data or not data[0]:
+        return "(could not fetch email)"
+    raw = data[0][1] if isinstance(data[0], tuple) else data[0]
+    msg = _email_lib.message_from_bytes(raw)
+    sender = _decode_str(msg.get("From", "Unknown")).split("<")[0].strip()
+    subject = _decode_str(msg.get("Subject", "(no subject)"))
+    body = _extract_text_from_message(msg) or "(no body)"
     return f"From: {sender}\nSubject: {subject}\n\n{body}"
 
 
+def get_email_body(message_id: str) -> str:
+    """Fetch the full plain-text body of an email by IMAP UID."""
+    try:
+        conn = _imap_conn()
+    except Exception as e:
+        raise RuntimeError(f"IMAP login failed: {e}") from e
+
+    try:
+        # Try INBOX first, then Sent
+        for folder in ("INBOX", '"[Gmail]/Sent Mail"', '"[Gmail]/All Mail"'):
+            try:
+                conn.select(folder, readonly=True)
+                result = _get_body_by_uid(conn, message_id.encode())
+                if result != "(could not fetch email)":
+                    return result
+            except Exception:
+                continue
+        return "(email not found)"
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
+
+
 def get_email_details(message_id: str) -> dict:
-    creds = get_creds()
-    service = build("gmail", "v1", credentials=creds)
+    """Fetch headers needed to reply to an email by IMAP UID."""
+    try:
+        conn = _imap_conn()
+    except Exception as e:
+        raise RuntimeError(f"IMAP login failed: {e}") from e
 
-    detail = service.users().messages().get(
-        userId="me", id=message_id, format="metadata",
-        metadataHeaders=["From", "Subject", "Message-ID", "References"],
-    ).execute()
+    try:
+        for folder in ("INBOX", '"[Gmail]/Sent Mail"', '"[Gmail]/All Mail"'):
+            try:
+                conn.select(folder, readonly=True)
+                env = _fetch_envelope(conn, message_id.encode())
+                if env:
+                    from_raw = env.get("from", "")
+                    match = re.search(r"<(.+?)>", from_raw)
+                    sender_email = match.group(1) if match else from_raw
+                    return {
+                        "thread_id": None,  # not used in SMTP path
+                        "to": sender_email,
+                        "subject": env.get("subject", ""),
+                        "message_id_header": env.get("message_id", ""),
+                        "references": env.get("references", ""),
+                    }
+            except Exception:
+                continue
+        return {"thread_id": None, "to": "", "subject": "", "message_id_header": "", "references": ""}
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
 
-    headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
-    from_raw = headers.get("From", "")
-    match = re.search(r"<(.+?)>", from_raw)
-    sender_email = match.group(1) if match else from_raw
 
-    return {
-        "thread_id": detail["threadId"],
-        "to": sender_email,
-        "subject": headers.get("Subject", ""),
-        "message_id_header": headers.get("Message-ID", ""),
-        "references": headers.get("References", ""),
-    }
-
-
-def send_reply(thread_id: str, to: str, subject: str, in_reply_to: str, references: str, body: str) -> str:
-    creds = get_creds()
-    service = build("gmail", "v1", credentials=creds)
-
+def send_reply(thread_id, to: str, subject: str, in_reply_to: str, references: str, body: str) -> str:
+    """Send a reply via SMTP using Gmail App Password."""
+    password = os.environ["GMAIL_APP_PASSWORD"]
     reply_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
-    msg = MIMEText(body)
+
+    msg = MIMEMultipart()
+    msg["From"] = GMAIL_USER
     msg["To"] = to
     msg["Subject"] = reply_subject
-    msg["In-Reply-To"] = in_reply_to
-    msg["References"] = f"{references} {in_reply_to}".strip()
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+        msg["References"] = f"{references} {in_reply_to}".strip() if references else in_reply_to
+    msg.attach(MIMEText(body, "plain"))
 
-    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    sent = service.users().messages().send(
-        userId="me",
-        body={"raw": raw, "threadId": thread_id},
-    ).execute()
-    return f"Reply sent to {to} (id: {sent['id']})"
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.ehlo()
+        server.starttls()
+        server.login(GMAIL_USER, password)
+        server.sendmail(GMAIL_USER, to, msg.as_string())
+
+    return f"Reply sent to {to}"

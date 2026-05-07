@@ -37,17 +37,16 @@ TOOLS = [
             "Search for a specific email by person, subject, or folder. "
             "Use this when the user names someone ('email from Petra', 'my last email to Stefan'), "
             "mentions a subject, or asks for sent mail or older emails. "
-            "Searches read AND unread, any folder. "
-            "Supports Gmail syntax: 'from:name', 'to:name', 'subject:text', 'in:sent', "
+            "Supported filters: 'from:name', 'to:name', 'subject:text', 'in:sent', "
             "'in:anywhere', 'newer_than:30d'. "
-            "Never use get_emails for this — get_emails only sees unread/important."
+            "Never use get_emails for this — get_emails only sees unread inbox."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Gmail search query, e.g. 'from:petra in:anywhere newer_than:30d'",
+                    "description": "Search query, e.g. 'from:petra in:anywhere newer_than:30d'",
                 },
                 "max_results": {
                     "type": "integer",
