@@ -205,6 +205,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Updated draft:\n\n{text}", reply_markup=keyboard)
         return
 
+    if await handle_reauth_code(update, context):
+        return
+
     await update.message.reply_text("On it...")
     try:
         result = route(text, user_id=user_id)
@@ -338,6 +341,64 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("pong")
 
 
+async def reauth(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from urllib.parse import urlencode
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    params = {
+        "client_id": client_id,
+        "redirect_uri": "http://localhost:7777",
+        "response_type": "code",
+        "scope": "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.modify",
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    url = "https://accounts.google.com/o/oauth2/auth?" + urlencode(params)
+    await update.message.reply_text(
+        f"Open this URL, approve, then paste the full redirect URL back here:\n\n{url}"
+    )
+
+
+async def handle_reauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from urllib.parse import urlparse, parse_qs
+    import requests as _req
+    text = update.message.text.strip()
+    if not text.startswith("http://localhost:7777/?"):
+        return False
+    code = parse_qs(urlparse(text).query).get("code", [None])[0]
+    if not code:
+        await update.message.reply_text("No code found in that URL. Try /reauth again.")
+        return True
+    await update.message.reply_text("Exchanging code...")
+    try:
+        r = _req.post("https://oauth2.googleapis.com/token", data={
+            "code": code,
+            "client_id": os.environ["GOOGLE_CLIENT_ID"],
+            "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],
+            "redirect_uri": "http://localhost:7777",
+            "grant_type": "authorization_code",
+        }, timeout=10)
+        data = r.json()
+        if "refresh_token" not in data:
+            await update.message.reply_text(f"Token exchange failed: {data}")
+            return True
+        new_token = data["refresh_token"]
+        from google_client import _redis_client, _REDIS_CREDS_KEY
+        rc = _redis_client()
+        if rc:
+            rc.delete(_REDIS_CREDS_KEY)
+            rc.delete("icarus:google:refresh_lock")
+        import google_client as _gc
+        _gc._creds = None
+        await update.message.reply_text(
+            f"New refresh token obtained. Update Railway:\n\n"
+            f"GOOGLE_REFRESH_TOKEN={new_token}\n\n"
+            "Then redeploy."
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Reauth failed: {e}")
+    return True
+
+
 async def audit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     events = get_recent_events(20)
     if not events:
@@ -405,6 +466,7 @@ def main():
     auth = _allowed_filter()
 
     app.add_handler(CommandHandler("ping", ping))
+    app.add_handler(CommandHandler("reauth", reauth, filters=auth))
     app.add_handler(CommandHandler("start", start, filters=auth))
     app.add_handler(CommandHandler("calendar", calendar, filters=auth))
     app.add_handler(CommandHandler("emails", emails, filters=auth))
