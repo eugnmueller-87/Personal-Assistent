@@ -24,10 +24,12 @@ _REDIS_TOKEN_KEY = "icarus:google:refresh_token"
 def _redis_client():
     try:
         from upstash_redis import Redis
-        return Redis(
-            url=os.environ["UPSTASH_REDIS_URL"],
-            token=os.environ["UPSTASH_REDIS_TOKEN"],
-        )
+        url = os.environ["UPSTASH_REDIS_URL"]
+        token = os.environ["UPSTASH_REDIS_TOKEN"]
+        # Railway stores token as "bearer@host:port" — strip the suffix
+        if "@" in token:
+            token = token.split("@")[0]
+        return Redis(url=url, token=token)
     except Exception:
         return None
 
