@@ -35,7 +35,7 @@ def _redis_client():
 
 def _save_creds(creds: Credentials):
     """Persist full credentials (access token + refresh token + expiry) to Redis."""
-    import json, time as _time
+    import json
     r = _redis_client()
     if not r:
         return
@@ -59,7 +59,8 @@ def _save_creds(creds: Credentials):
 
 def _load_creds_from_redis() -> "Credentials | None":
     """Load credentials from Redis. Returns None if missing, expired, or invalid."""
-    import json, time as _time
+    import json
+    import time as _time
     r = _redis_client()
     if not r:
         return None
@@ -126,20 +127,43 @@ def get_creds():
     if _creds is not None and _creds.valid:
         return _creds
 
-    # Need to refresh — either Redis cred is expired or Redis is empty
-    if _creds is None:
-        _creds = Credentials(
-            token=None,
-            refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=os.environ["GOOGLE_CLIENT_ID"],
-            client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
-            scopes=SCOPES,
-        )
+    # Need to refresh — acquire a Redis lock so concurrent restarts don't race
+    r = _redis_client()
+    lock_key = "icarus:google:refresh_lock"
+    lock_acquired = False
+    if r:
+        try:
+            lock_acquired = bool(r.set(lock_key, "1", nx=True, ex=30))
+        except Exception:
+            pass
 
-    _creds.refresh(Request())
-    _save_creds(_creds)
-    return _creds
+    if not lock_acquired and r:
+        # Another instance is refreshing — wait briefly then retry from Redis
+        import time as _t
+        _t.sleep(3)
+        _creds = _load_creds_from_redis()
+        if _creds is not None and _creds.valid:
+            return _creds
+
+    try:
+        if _creds is None:
+            _creds = Credentials(
+                token=None,
+                refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=os.environ["GOOGLE_CLIENT_ID"],
+                client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
+                scopes=SCOPES,
+            )
+        _creds.refresh(Request())
+        _save_creds(_creds)
+        return _creds
+    finally:
+        if lock_acquired and r:
+            try:
+                r.delete(lock_key)
+            except Exception:
+                pass
 
 
 def get_today_events():
