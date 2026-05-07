@@ -34,7 +34,7 @@ def _allowed_filter():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "ICARUS online.\n\n"
+        "ICARUS online. [v76dcc0a]\n\n"
         "Commands:\n"
         "/calendar — this week's events\n"
         "/emails — unread emails\n"
