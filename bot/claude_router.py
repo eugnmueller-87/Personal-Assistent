@@ -96,7 +96,7 @@ _COMPLEX_SIGNALS = [
     "what did we", "remember", "last time", "context",
     "urgent", "overview", "everything", "decision",
     "why", "how does", "what's the difference",
-    "hermes",
+    "hermes", "herm", "germ",  # catch typos like "germes"
     # context-referencing — always need conversation history
     "she ", "he ", "her ", "him ", "they ", "their ",
     "what did", "what does", "what did she", "what did he",
