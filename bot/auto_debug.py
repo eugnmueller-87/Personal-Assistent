@@ -10,6 +10,8 @@ from audit_log import log_event
 
 _MAX_ATTEMPTS = 2
 _fix_attempts: dict = {}
+_last_notified: dict = {}  # error_key -> timestamp, for deduplication
+_NOTIFY_COOLDOWN = 3600  # seconds between repeated notifications for same error
 
 FORBIDDEN_AUTO_FIX_FILES = {
     "bot/auto_debug.py",
@@ -134,8 +136,24 @@ def _ask_claude(tb_str: str, file_content: str, file_path: str) -> str:
     return raw.strip()
 
 
+def _should_notify(key: str) -> bool:
+    import time as _t
+    now = _t.time()
+    last = _last_notified.get(key, 0)
+    if now - last < _NOTIFY_COOLDOWN:
+        return False
+    _last_notified[key] = now
+    return True
+
+
 async def handle_error(exc: Exception, tb_str: str):
     error_summary = f"{type(exc).__name__}: {exc}"
+
+    # Deduplicate noisy recurring errors — notify at most once per hour per error type
+    error_key = type(exc).__name__
+    if not _should_notify(error_key):
+        log_event("error_suppressed", error_summary[:100])
+        return
 
     file_path = _extract_file_path(tb_str)
     if not file_path:
