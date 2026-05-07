@@ -22,8 +22,15 @@ _creds = None
 
 def get_creds():
     global _creds
-    if _creds and _creds.valid:
+    if _creds is not None and _creds.valid:
         return _creds
+    # Reuse same object when expired so token rotation is preserved
+    if _creds is not None and _creds.expired and _creds.refresh_token:
+        try:
+            _creds.refresh(Request())
+            return _creds
+        except Exception:
+            _creds = None  # refresh token revoked — rebuild from env
     _creds = Credentials(
         token=None,
         refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
