@@ -7,19 +7,26 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  lint-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: bot
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.11"
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: uvx ruff check .
+
       - name: Syntax check
         run: python -m py_compile main.py claude_router.py auto_debug.py audit_log.py skills/__init__.py
+
       - name: Run tests
-        run: pytest tests/
+        run: pytest tests/ -v

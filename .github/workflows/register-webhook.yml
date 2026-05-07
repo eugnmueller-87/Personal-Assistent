@@ -1,0 +1,23 @@
+name: Register Telegram Webhook
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  register:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Railway deploy
+        run: sleep 90
+
+      - name: Set webhook
+        run: |
+          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/setWebhook?url=https://personal-assistent-production-ff8f.up.railway.app/telegram&drop_pending_updates=true"
+
+      - name: Verify webhook
+        run: |
+          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/getWebhookInfo"

@@ -432,7 +432,6 @@ def main():
         await app.bot.set_webhook(url=f"{webhook_url}/telegram", drop_pending_updates=True)
         logging.info(f"[ICARUS] Webhook registered at {webhook_url}/telegram")
         yield
-        await app.bot.delete_webhook()
         await app.stop()
         await app.shutdown()
 
