@@ -106,7 +106,7 @@ def _create_pr(path: str, content: str, sha: str, summary: str) -> str | None:
 
 
 def _extract_file_path(tb_str: str) -> str | None:
-    matches = re.findall(r'/bot/([^"]+\.py)', tb_str)
+    matches = re.findall(r'(?:/app/|/bot/)([^"]+\.py)', tb_str)
     if matches:
         return f"bot/{matches[-1]}"
     return None

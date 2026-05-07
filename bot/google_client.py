@@ -17,8 +17,14 @@ SCOPES = [
 ]
 
 
+_creds = None
+
+
 def get_creds():
-    creds = Credentials(
+    global _creds
+    if _creds and _creds.valid:
+        return _creds
+    _creds = Credentials(
         token=None,
         refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
         token_uri="https://oauth2.googleapis.com/token",
@@ -26,8 +32,8 @@ def get_creds():
         client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
         scopes=SCOPES,
     )
-    creds.refresh(Request())
-    return creds
+    _creds.refresh(Request())
+    return _creds
 
 
 def get_today_events():
@@ -216,7 +222,7 @@ def delete_calendar_event(event_id: str) -> str:
 def find_calendar_events(query: str, date: str = None) -> str:
     creds = get_creds()
     service = build("calendar", "v3", credentials=creds)
-    now = datetime.utcnow().isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat()
     params = {
         "calendarId": "primary",
         "q": query,

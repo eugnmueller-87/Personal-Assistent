@@ -27,8 +27,8 @@ _redis = None
 def _get_redis():
     global _redis
     if _redis is None:
-        url = os.environ.get("UPSTASH_REDIS_URL")
-        token = os.environ.get("UPSTASH_REDIS_TOKEN")
+        url = os.environ.get("UPSTASH_REDIS_REST_URL") or os.environ.get("UPSTASH_REDIS_URL")
+        token = os.environ.get("UPSTASH_REDIS_REST_TOKEN") or os.environ.get("UPSTASH_REDIS_TOKEN")
         if url and token:
             try:
                 from upstash_redis import Redis

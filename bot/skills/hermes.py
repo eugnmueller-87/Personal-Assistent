@@ -4,7 +4,6 @@ import requests
 _HERMES_DEFAULT_URL = "https://hermes-agent-production-114e.up.railway.app"
 _HERMES_DEFAULT_KEY = "hermes-icarus-2026"
 
-HERMES_API_KEY = os.environ.get("HERMES_API_KEY", _HERMES_DEFAULT_KEY)
 
 TOOLS = [
     {
@@ -258,7 +257,8 @@ def _get_url() -> tuple[str, str | None]:
 
 
 def _headers():
-    return {"x-api-key": HERMES_API_KEY} if HERMES_API_KEY else {}
+    key = os.environ.get("HERMES_API_KEY", _HERMES_DEFAULT_KEY)
+    return {"x-api-key": key} if key else {}
 
 
 def _format_item(item: dict) -> str:
@@ -551,7 +551,7 @@ def _hermes_greet() -> str:
     if err:
         return err
     try:
-        r = requests.get(f"{url}/greet", timeout=10)
+        r = requests.get(f"{url}/greet", headers=_headers(), timeout=10)
         r.raise_for_status()
         data = r.json()
         return f"{data['message']}\n\n{data['latest']}"

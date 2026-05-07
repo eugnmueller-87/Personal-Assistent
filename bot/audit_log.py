@@ -10,8 +10,8 @@ _MAX_ENTRIES = 100
 
 def _get_redis():
     try:
-        url = os.environ.get("UPSTASH_REDIS_URL")
-        token = os.environ.get("UPSTASH_REDIS_TOKEN")
+        url = os.environ.get("UPSTASH_REDIS_REST_URL") or os.environ.get("UPSTASH_REDIS_URL")
+        token = os.environ.get("UPSTASH_REDIS_REST_TOKEN") or os.environ.get("UPSTASH_REDIS_TOKEN")
         if url and token:
             from upstash_redis import Redis
             return Redis(url=url, token=token)

@@ -3,6 +3,7 @@ import asyncio
 import tempfile
 import logging
 import uvicorn
+from contextlib import asynccontextmanager
 from datetime import time as dtime
 from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Request, Response
@@ -424,7 +425,18 @@ def main():
     app.job_queue.run_daily(hermes_weekly_digest, time=dtime(hour=18, minute=30, tzinfo=BERLIN), days=(6,))
     app.job_queue.run_repeating(check_new_emails, interval=900, first=60)
 
-    fast_app = FastAPI()
+    @asynccontextmanager
+    async def lifespan(_fast):
+        await app.initialize()
+        await app.start()
+        await app.bot.set_webhook(url=f"{webhook_url}/telegram", drop_pending_updates=True)
+        logging.info(f"[ICARUS] Webhook registered at {webhook_url}/telegram")
+        yield
+        await app.bot.delete_webhook()
+        await app.stop()
+        await app.shutdown()
+
+    fast_app = FastAPI(lifespan=lifespan)
 
     @fast_app.get("/health")
     async def health():
@@ -436,19 +448,6 @@ def main():
         update = Update.de_json(data, app.bot)
         await app.update_queue.put(update)
         return Response("ok", media_type="text/plain")
-
-    @fast_app.on_event("startup")
-    async def on_startup():
-        await app.initialize()
-        await app.start()
-        await app.bot.set_webhook(url=f"{webhook_url}/telegram", drop_pending_updates=True)
-        logging.info(f"[ICARUS] Webhook registered at {webhook_url}/telegram")
-
-    @fast_app.on_event("shutdown")
-    async def on_shutdown():
-        await app.bot.delete_webhook()
-        await app.stop()
-        await app.shutdown()
 
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(fast_app, host="0.0.0.0", port=port)
