@@ -318,10 +318,14 @@ async def morning_briefing(context):
         asyncio.create_task(handle_error(e, _tb.format_exc()))
 
 
+_google_auth_alerted = False
+
+
 async def check_new_emails(context):
-    global _alerted_email_ids
+    global _alerted_email_ids, _google_auth_alerted
     try:
         formatted, msg_ids = get_recent_emails_with_ids(since_minutes=20)
+        _google_auth_alerted = False  # reset once Google works again
         if not msg_ids:
             return
         new_ids = msg_ids - _alerted_email_ids
@@ -334,7 +338,16 @@ async def check_new_emails(context):
                 text=f"📧 Heads up:\n\n{formatted}",
             )
     except Exception as e:
-        logging.error(f"[ICARUS] check_new_emails failed: {e}")
+        err = str(e)
+        if "invalid_grant" in err or "RefreshError" in type(e).__name__:
+            if not _google_auth_alerted:
+                _google_auth_alerted = True
+                await context.bot.send_message(
+                    chat_id=os.environ["TELEGRAM_CHAT_ID"],
+                    text="Google auth expired. Send /reauth to fix.",
+                )
+        else:
+            logging.error(f"[ICARUS] check_new_emails failed: {e}")
 
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
