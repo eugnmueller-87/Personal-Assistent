@@ -317,7 +317,7 @@ def get_recent_emails_with_ids(since_minutes=20):
     try:
         # Search Gmail Important folder — mirrors is:important filter
         try:
-            conn.select('"[Gmail]/Important"')
+            conn.select("[Gmail]/Important")
         except Exception:
             conn.select("INBOX")
         since_dt = datetime.utcnow() - timedelta(minutes=since_minutes)
@@ -466,7 +466,7 @@ def get_unread_emails(max_results=10, since_minutes=None):
 
     try:
         try:
-            conn.select('"[Gmail]/Important"')
+            conn.select("[Gmail]/Important")
         except Exception:
             conn.select("INBOX")
 
@@ -516,7 +516,7 @@ def _gmail_query_to_imap(query: str) -> str:
 
     # Extract folder hints before building criteria
     if "in:sent" in query:
-        folder = '"[Gmail]/Sent Mail"'
+        folder = "[Gmail]/Sent Mail"
         query = query.replace("in:sent", "").strip()
     elif "in:anywhere" in query:
         folder = "ALL"
@@ -565,7 +565,7 @@ def search_emails(query: str, max_results: int = 5) -> str:
         if folder == "ALL":
             # Search all folders — try INBOX + Sent
             all_uids = []
-            for f in ("INBOX", '"[Gmail]/Sent Mail"'):
+            for f in ("INBOX", "[Gmail]/Sent Mail"):
                 try:
                     conn.select(f, readonly=True)
                     _, data = conn.uid("search", None, criteria)
@@ -629,7 +629,7 @@ def get_email_body(message_id: str) -> str:
 
     try:
         # Try INBOX first, then Sent
-        for folder in ("INBOX", '"[Gmail]/Sent Mail"', '"[Gmail]/All Mail"'):
+        for folder in ("INBOX", "[Gmail]/Sent Mail", "[Gmail]/All Mail"):
             try:
                 conn.select(folder, readonly=True)
                 result = _get_body_by_uid(conn, message_id.encode())
@@ -653,7 +653,7 @@ def get_email_details(message_id: str) -> dict:
         raise RuntimeError(f"IMAP login failed: {e}") from e
 
     try:
-        for folder in ("INBOX", '"[Gmail]/Sent Mail"', '"[Gmail]/All Mail"'):
+        for folder in ("INBOX", "[Gmail]/Sent Mail", "[Gmail]/All Mail"):
             try:
                 conn.select(folder, readonly=True)
                 env = _fetch_envelope(conn, message_id.encode())
