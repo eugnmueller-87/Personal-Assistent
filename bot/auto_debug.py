@@ -10,8 +10,11 @@ from audit_log import log_event
 
 _MAX_ATTEMPTS = 2
 _fix_attempts: dict = {}
-_last_notified: dict = {}  # error_key -> timestamp, for deduplication
+_last_notified: dict = {}  # error_key -> timestamp, in-memory fallback
 _NOTIFY_COOLDOWN = 3600  # seconds between repeated notifications for same error
+
+# Errors that are never actionable for auto-debug — suppress entirely after first notify
+_SILENT_ERRORS = {"RefreshError", "TransportError", "HttpAccessTokenRefreshError"}
 
 FORBIDDEN_AUTO_FIX_FILES = {
     "bot/auto_debug.py",
@@ -136,9 +139,33 @@ def _ask_claude(tb_str: str, file_content: str, file_path: str) -> str:
     return raw.strip()
 
 
+def _redis():
+    try:
+        from upstash_redis import Redis
+        url = os.environ["UPSTASH_REDIS_URL"]
+        token = os.environ["UPSTASH_REDIS_TOKEN"]
+        if "@" in token:
+            token = token.split("@")[0]
+        return Redis(url=url, token=token)
+    except Exception:
+        return None
+
+
 def _should_notify(key: str) -> bool:
     import time as _t
     now = _t.time()
+    # Try Redis first so deduplication survives restarts
+    r = _redis()
+    if r:
+        try:
+            redis_key = f"icarus:error_notified:{key}"
+            if r.get(redis_key):
+                return False
+            r.set(redis_key, "1", ex=_NOTIFY_COOLDOWN)
+            return True
+        except Exception:
+            pass
+    # Fall back to in-memory
     last = _last_notified.get(key, 0)
     if now - last < _NOTIFY_COOLDOWN:
         return False
@@ -149,66 +176,66 @@ def _should_notify(key: str) -> bool:
 async def handle_error(exc: Exception, tb_str: str):
     error_summary = f"{type(exc).__name__}: {exc}"
 
-    # Deduplicate noisy recurring errors — notify at most once per hour per error type
+    # Deduplicate — at most once per hour per error type, persisted in Redis across restarts
     error_key = type(exc).__name__
     if not _should_notify(error_key):
         log_event("error_suppressed", error_summary[:100])
         return
 
+    logging.error(f"[AUTO-DEBUG] {error_summary}")
+
     file_path = _extract_file_path(tb_str)
     if not file_path:
-        _notify(f"ICARUS error (unknown file — manual fix needed):\n{error_summary}")
-        log_event("error_unhandled", error_summary)
+        # Can't locate file — log only, no Telegram spam
+        log_event("error_unhandled", error_summary[:200])
         return
 
     if file_path in FORBIDDEN_AUTO_FIX_FILES:
-        _notify(f"ICARUS error in {file_path} (protected file — manual fix required):\n{error_summary}")
+        # Protected file — log only
         log_event("auto_fix_blocked", f"{file_path}: {error_summary[:100]}")
         return
 
     attempts = _fix_attempts.get(file_path, 0)
     if attempts >= _MAX_ATTEMPTS:
+        # Auto-fix exhausted — this one warrants a notification since code is broken
         _notify(
-            f"ICARUS: auto-fix exhausted for {file_path} ({_MAX_ATTEMPTS} attempts). "
-            f"Manual fix needed.\n\n{error_summary}"
+            f"Auto-fix exhausted for {file_path} — manual fix needed.\n\n{error_summary}"
         )
         log_event("auto_fix_exhausted", f"{file_path}: {error_summary}")
         return
     _fix_attempts[file_path] = attempts + 1
 
-    _notify(f"ICARUS error in {file_path}. Analyzing...\n\n{error_summary}")
     log_event("error_caught", f"{file_path}: {error_summary}")
 
     try:
         file_content, sha = await asyncio.to_thread(_get_file, file_path)
     except Exception as e:
-        _notify(f"Auto-fix failed: couldn't read {file_path}: {e}")
+        logging.error(f"[AUTO-DEBUG] couldn't read {file_path}: {e}")
         return
 
     if not file_content:
-        repo = os.environ.get("RAILWAY_REPO", "unknown repo")
-        _notify(f"Auto-fix failed: {file_path} not found in {repo}.")
+        logging.error(f"[AUTO-DEBUG] {file_path} not found in repo")
         return
 
     try:
         fixed = await asyncio.to_thread(_ask_claude, tb_str, file_content, file_path)
     except Exception as e:
-        _notify(f"Auto-fix failed: Claude error: {e}")
+        logging.error(f"[AUTO-DEBUG] Claude error: {e}")
         return
 
     if not fixed or len(fixed) < 50:
-        _notify(f"Auto-fix failed: Claude returned an empty result for {file_path}.")
+        logging.error(f"[AUTO-DEBUG] Claude returned empty result for {file_path}")
         return
 
     try:
         pr_url = await asyncio.to_thread(_create_pr, file_path, fixed, sha, error_summary)
     except Exception as e:
-        _notify(f"Auto-fix failed: PR creation error: {e}")
+        logging.error(f"[AUTO-DEBUG] PR creation error: {e}")
         return
 
     if not pr_url:
-        _notify(f"Auto-fix failed: couldn't open PR for {file_path}.")
+        logging.error(f"[AUTO-DEBUG] couldn't open PR for {file_path}")
         return
 
     log_event("auto_fix_pr", f"{file_path}: {error_summary[:100]}")
-    _notify(f"Fix PR ready for {file_path}. Review and merge to deploy:\n{pr_url}")
+    _notify(f"Fix PR ready for {file_path}:\n{pr_url}")

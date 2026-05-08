@@ -299,8 +299,20 @@ async def hermes_weekly_digest(context):
 async def morning_briefing(context):
     try:
         cal = get_today_events()
+    except Exception as e:
+        cal = f"Calendar unavailable: {e}"
+        logging.error(f"[ICARUS] morning_briefing calendar failed: {e}")
+    try:
         mail = get_unread_emails(since_minutes=1440)
+    except Exception as e:
+        mail = f"Email unavailable: {e}"
+        logging.error(f"[ICARUS] morning_briefing email failed: {e}")
+    try:
         iss = get_open_issues()
+    except Exception as e:
+        iss = f"GitHub unavailable: {e}"
+        logging.error(f"[ICARUS] morning_briefing issues failed: {e}")
+    try:
         brief = compose_morning_brief(cal, mail, iss)
         hermes_block = _hermes_morning_signals()
         market_section = f"\n\n📡 Market signals:\n{hermes_block}" if hermes_block else ""

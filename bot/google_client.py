@@ -296,6 +296,17 @@ def _fetch_envelope(conn, uid: bytes) -> dict:
     }
 
 
+_NOISE_SENDERS = (
+    "noreply", "no-reply", "donotreply", "notifications", "mailer-daemon",
+    "newsletter", "updates", "info@", "support@", "hello@", "team@",
+)
+
+
+def _is_noise(from_header: str) -> bool:
+    low = from_header.lower()
+    return any(p in low for p in _NOISE_SENDERS)
+
+
 def get_recent_emails_with_ids(since_minutes=20):
     """Returns (formatted_text, set_of_uid_strings) for alert deduplication."""
     try:
@@ -304,7 +315,11 @@ def get_recent_emails_with_ids(since_minutes=20):
         raise RuntimeError(f"IMAP login failed: {e}") from e
 
     try:
-        conn.select("INBOX")
+        # Search Gmail Important folder — mirrors is:important filter
+        try:
+            conn.select('"[Gmail]/Important"')
+        except Exception:
+            conn.select("INBOX")
         since_dt = datetime.utcnow() - timedelta(minutes=since_minutes)
         since_str = since_dt.strftime("%d-%b-%Y")
         _, data = conn.uid("search", None, f'(UNSEEN SINCE "{since_str}")')
@@ -312,14 +327,22 @@ def get_recent_emails_with_ids(since_minutes=20):
         if not uids:
             return None, set()
 
-        uids = uids[-5:]  # newest 5
-        msg_ids = {uid.decode() for uid in uids}
-        lines = []
+        uids = uids[-10:]  # fetch more, then filter noise
+        results = []
         for uid in uids:
             env = _fetch_envelope(conn, uid)
-            sender = env.get("from", "Unknown").split("<")[0].strip()
+            from_raw = env.get("from", "")
+            if _is_noise(from_raw):
+                continue
+            sender = from_raw.split("<")[0].strip()
             subject = env.get("subject", "(no subject)")
-            lines.append(f"• {sender}: {subject}")
+            results.append((uid.decode(), sender, subject))
+
+        if not results:
+            return None, set()
+
+        msg_ids = {uid for uid, _, _ in results}
+        lines = [f"• {sender}: {subject}" for _, sender, subject in results[-5:]]
         return "\n".join(lines), msg_ids
     finally:
         try:
@@ -442,33 +465,43 @@ def get_unread_emails(max_results=10, since_minutes=None):
         raise RuntimeError(f"IMAP login failed: {e}") from e
 
     try:
-        conn.select("INBOX")
+        try:
+            conn.select('"[Gmail]/Important"')
+        except Exception:
+            conn.select("INBOX")
+
         if since_minutes:
             since_dt = datetime.utcnow() - timedelta(minutes=since_minutes)
-            since_str = since_dt.strftime("%d-%b-%Y")
-            _, data = conn.uid("search", None, f'(UNSEEN SINCE "{since_str}")')
             label = f"last {since_minutes} min"
         else:
             since_dt = datetime.utcnow() - timedelta(days=3)
-            since_str = since_dt.strftime("%d-%b-%Y")
-            _, data = conn.uid("search", None, f'(UNSEEN SINCE "{since_str}")')
             label = "last 3 days"
 
+        since_str = since_dt.strftime("%d-%b-%Y")
+        _, data = conn.uid("search", None, f'(UNSEEN SINCE "{since_str}")')
         uids = data[0].split() if data[0] else []
         if not uids:
-            return f"No unread emails in the {label}."
+            return f"No unread important emails in the {label}."
 
-        uids = uids[-max_results:]
-        total = len(uids)
-        lines = []
-        for uid in uids[-5:]:
+        uids = uids[-max_results * 2:]  # fetch extra to account for noise filtering
+        results = []
+        for uid in uids:
             env = _fetch_envelope(conn, uid)
-            sender = env.get("from", "Unknown").split("<")[0].strip()
+            from_raw = env.get("from", "")
+            if _is_noise(from_raw):
+                continue
+            sender = from_raw.split("<")[0].strip()
             subject = env.get("subject", "(no subject)")
-            lines.append(f"• [ID:{uid.decode()}] {sender}: {subject}")
-        if total > 5:
-            lines.append(f"... and {total - 5} more")
-        return f"Unread emails ({label}): {total}\n" + "\n".join(lines)
+            results.append((uid.decode(), sender, subject))
+
+        if not results:
+            return f"No unread important emails in the {label}."
+
+        results = results[-max_results:]
+        lines = [f"• [ID:{uid}] {sender}: {subject}" for uid, sender, subject in results[-5:]]
+        if len(results) > 5:
+            lines.append(f"... and {len(results) - 5} more")
+        return f"Unread important ({label}): {len(results)}\n" + "\n".join(lines)
     finally:
         try:
             conn.logout()
