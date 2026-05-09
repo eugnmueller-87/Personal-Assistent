@@ -13,8 +13,16 @@ _fix_attempts: dict = {}
 _last_notified: dict = {}  # error_key -> timestamp, in-memory fallback
 _NOTIFY_COOLDOWN = 3600  # seconds between repeated notifications for same error
 
-# Errors that are never actionable for auto-debug — suppress entirely after first notify
-_SILENT_ERRORS = {"RefreshError", "TransportError", "HttpAccessTokenRefreshError"}
+# Errors that are never actionable for auto-debug — suppress entirely, no Telegram notify
+_SILENT_ERRORS = {
+    "RefreshError",
+    "TransportError",
+    "HttpAccessTokenRefreshError",
+    "gaierror",           # DNS/network failures
+    "TimeoutError",
+    "ConnectionError",
+    "SSLError",
+}
 
 FORBIDDEN_AUTO_FIX_FILES = {
     "bot/auto_debug.py",
@@ -175,9 +183,15 @@ def _should_notify(key: str) -> bool:
 
 async def handle_error(exc: Exception, tb_str: str):
     error_summary = f"{type(exc).__name__}: {exc}"
+    error_key = type(exc).__name__
+
+    # Drop transient/infrastructure errors entirely — never notify, never auto-fix
+    if error_key in _SILENT_ERRORS:
+        logging.info(f"[AUTO-DEBUG] silent error dropped: {error_summary}")
+        log_event("error_suppressed", error_summary[:100])
+        return
 
     # Deduplicate — at most once per hour per error type, persisted in Redis across restarts
-    error_key = type(exc).__name__
     if not _should_notify(error_key):
         log_event("error_suppressed", error_summary[:100])
         return
