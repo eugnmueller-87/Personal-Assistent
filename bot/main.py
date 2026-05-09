@@ -322,10 +322,8 @@ async def morning_briefing(context):
         )
         log_event("morning_briefing", "sent ok")
     except Exception as e:
-        import traceback as _tb
         logging.error(f"[ICARUS] morning_briefing failed: {e}")
         log_event("morning_briefing_failed", str(e)[:100])
-        asyncio.create_task(handle_error(e, _tb.format_exc()))
 
 
 async def check_new_emails(context):
