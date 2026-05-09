@@ -175,10 +175,11 @@ def get_recent_emails_with_ids(since_minutes=20):
 
     try:
         # Search Gmail Important folder — mirrors is:important filter
-        try:
-            conn.select("[Gmail]/Important")
-        except Exception:
-            conn.select("INBOX")
+        status, _ = conn.select("[Gmail]/Important")
+        if status != "OK":
+            status, _ = conn.select("INBOX")
+        if status != "OK":
+            return None, set()
         since_dt = datetime.utcnow() - timedelta(minutes=since_minutes)
         since_str = since_dt.strftime("%d-%b-%Y")
         _, data = conn.uid("search", None, f'(UNSEEN SINCE "{since_str}")')
@@ -333,10 +334,11 @@ def get_unread_emails(max_results=10, since_minutes=None):
         raise RuntimeError(f"IMAP login failed: {e}") from e
 
     try:
-        try:
-            conn.select("[Gmail]/Important")
-        except Exception:
-            conn.select("INBOX")
+        status, _ = conn.select("[Gmail]/Important")
+        if status != "OK":
+            status, _ = conn.select("INBOX")
+        if status != "OK":
+            return f"Could not select mailbox."
 
         if since_minutes:
             since_dt = datetime.utcnow() - timedelta(minutes=since_minutes)
