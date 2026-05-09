@@ -151,7 +151,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         import traceback as _tb
         asyncio.create_task(handle_error(e, _tb.format_exc()))
-        await update.message.reply_text("Hit an error. Auto-fixing — back in ~2 min.")
+        logging.error(f"[ICARUS] handle_voice route failed: {e}")
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -173,7 +173,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         import traceback as _tb
         asyncio.create_task(handle_error(e, _tb.format_exc()))
-        await update.message.reply_text("Hit an error. Auto-fixing — back in ~2 min.")
+        logging.error(f"[ICARUS] handle_photo route failed: {e}")
     finally:
         os.unlink(tmp_path)
 
@@ -213,7 +213,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         import traceback as _tb
         asyncio.create_task(handle_error(e, _tb.format_exc()))
-        await update.message.reply_text("Hit an error. Auto-fixing — back in ~2 min.")
+        logging.error(f"[ICARUS] handle_message route failed: {e}")
 
 
 async def _reply_with_approval(update: Update, user_id: str, text: str):
