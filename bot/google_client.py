@@ -7,237 +7,96 @@ from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.header import decode_header as _decode_header
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
 
 TIMEZONE = "Europe/Berlin"
+CALDAV_URL = "https://apidata.googleusercontent.com/caldav/v2/eugnmueller@googlemail.com/events/"
 
 GMAIL_USER = os.environ.get("GMAIL_USER", "eugnmueller@googlemail.com")
 IMAP_HOST = "imap.gmail.com"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 
-SCOPES = [
-    "https://www.googleapis.com/auth/calendar",
-]
+
+def _caldav_client():
+    import caldav
+    password = os.environ["GMAIL_APP_PASSWORD"]
+    client = caldav.DAVClient(url=CALDAV_URL, username=GMAIL_USER, password=password)
+    return client.calendar(url=CALDAV_URL)
 
 
-_creds = None
-_REDIS_CREDS_KEY = "icarus:google:credentials"
-
-
-def _redis_client():
-    try:
-        from upstash_redis import Redis
-        url = os.environ["UPSTASH_REDIS_URL"]
-        token = os.environ["UPSTASH_REDIS_TOKEN"]
-        if "@" in token:
-            token = token.split("@")[0]
-        return Redis(url=url, token=token)
-    except Exception:
-        return None
-
-
-def _save_creds(creds: Credentials):
-    """Persist full credentials (access token + refresh token + expiry) to Redis."""
-    import json
-    r = _redis_client()
-    if not r:
-        return
-    try:
-        expiry_ts = None
-        if creds.expiry:
-            # Store as Unix timestamp to avoid naive/aware datetime confusion
-            if creds.expiry.tzinfo is None:
-                expiry_ts = creds.expiry.replace(tzinfo=timezone.utc).timestamp()
-            else:
-                expiry_ts = creds.expiry.timestamp()
-        data = {
-            "token": creds.token,
-            "refresh_token": creds.refresh_token,
-            "expiry_ts": expiry_ts,
-        }
-        r.set(_REDIS_CREDS_KEY, json.dumps(data))
-    except Exception:
-        pass
-
-
-def _load_creds_from_redis() -> "Credentials | None":
-    """Load credentials from Redis. Returns None if missing, expired, or invalid."""
-    import json
-    import time as _time
-    r = _redis_client()
-    if not r:
-        return None
-    try:
-        raw = r.get(_REDIS_CREDS_KEY)
-        if not raw:
-            return None
-        data = json.loads(raw)
-        # Support both legacy "expiry" ISO string and new "expiry_ts" Unix timestamp
-        expiry_ts = data.get("expiry_ts")
-        if expiry_ts is None and data.get("expiry"):
-            try:
-                exp_str = data["expiry"].replace("Z", "+00:00")
-                dt = datetime.fromisoformat(exp_str)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                expiry_ts = dt.timestamp()
-            except Exception:
-                expiry_ts = None
-        now_ts = _time.time()
-        # Only reuse if access token is valid for at least 5 more minutes
-        if expiry_ts and expiry_ts > now_ts + 300:
-            creds = Credentials(
-                token=data["token"],
-                refresh_token=data.get("refresh_token") or os.environ["GOOGLE_REFRESH_TOKEN"],
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=os.environ["GOOGLE_CLIENT_ID"],
-                client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
-                scopes=SCOPES,
-            )
-            creds.expiry = datetime.fromtimestamp(expiry_ts, tz=timezone.utc).replace(tzinfo=None)
-            return creds
-        # Access token expired — return stub with refresh_token so caller can refresh
-        if data.get("refresh_token"):
-            return Credentials(
-                token=None,
-                refresh_token=data["refresh_token"],
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=os.environ["GOOGLE_CLIENT_ID"],
-                client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
-                scopes=SCOPES,
-            )
-    except Exception:
-        pass
-    return None
-
-
-def get_creds():
-    global _creds
-    if _creds is not None and _creds.valid:
-        return _creds
-
-    # Attempt to refresh if we have an in-memory expired cred
-    if _creds is not None and _creds.refresh_token:
-        try:
-            _creds.refresh(Request())
-            _save_creds(_creds)
-            return _creds
-        except Exception:
-            _creds = None
-
-    # Try restoring from Redis — fast path that avoids unnecessary refreshes on restart
-    _creds = _load_creds_from_redis()
-    if _creds is not None and _creds.valid:
-        return _creds
-
-    # Need to refresh — acquire a Redis lock so concurrent restarts don't race
-    r = _redis_client()
-    lock_key = "icarus:google:refresh_lock"
-    lock_acquired = False
-    if r:
-        try:
-            lock_acquired = bool(r.set(lock_key, "1", nx=True, ex=30))
-        except Exception:
-            pass
-
-    if not lock_acquired and r:
-        # Another instance is refreshing — wait briefly then retry from Redis
-        import time as _t
-        _t.sleep(3)
-        _creds = _load_creds_from_redis()
-        if _creds is not None and _creds.valid:
-            return _creds
-
-    try:
-        if _creds is None:
-            _creds = Credentials(
-                token=None,
-                refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=os.environ["GOOGLE_CLIENT_ID"],
-                client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
-                scopes=SCOPES,
-            )
-        _creds.refresh(Request())
-        _save_creds(_creds)
-        return _creds
-    finally:
-        if lock_acquired and r:
-            try:
-                r.delete(lock_key)
-            except Exception:
-                pass
+def _parse_event(vevent) -> dict:
+    """Extract summary, start, end from a vobject vevent component."""
+    summary = str(getattr(vevent, "summary", None) and vevent.summary.value or "(no title)")
+    dtstart = vevent.dtstart.value
+    dtend = getattr(vevent, "dtend", None)
+    dtend = dtend.value if dtend else dtstart
+    # Normalize to datetime
+    if isinstance(dtstart, datetime):
+        if dtstart.tzinfo is None:
+            from zoneinfo import ZoneInfo
+            dtstart = dtstart.replace(tzinfo=ZoneInfo(TIMEZONE))
+        if isinstance(dtend, datetime) and dtend.tzinfo is None:
+            from zoneinfo import ZoneInfo
+            dtend = dtend.replace(tzinfo=ZoneInfo(TIMEZONE))
+    uid = str(getattr(vevent, "uid", None) and vevent.uid.value or "")
+    return {"summary": summary, "start": dtstart, "end": dtend, "uid": uid}
 
 
 def get_today_events():
-    creds = get_creds()
-    service = build("calendar", "v3", credentials=creds)
-
     from zoneinfo import ZoneInfo
     berlin = ZoneInfo(TIMEZONE)
     now_berlin = datetime.now(berlin)
-    start = now_berlin.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    start = now_berlin.replace(hour=0, minute=0, second=0, microsecond=0)
     end = start + timedelta(days=1)
 
-    result = service.events().list(
-        calendarId="primary",
-        timeMin=start.isoformat(),
-        timeMax=end.isoformat(),
-        singleEvents=True,
-        orderBy="startTime",
-    ).execute()
+    cal = _caldav_client()
+    results = cal.date_search(start=start, end=end, expand=True)
 
-    events = result.get("items", [])
-    if not events:
+    if not results:
         return "Nothing on the calendar today."
+
+    events = []
+    for r in results:
+        ve = r.vobject_instance.vevent
+        events.append(_parse_event(ve))
+    events.sort(key=lambda e: e["start"] if isinstance(e["start"], datetime) else datetime.combine(e["start"], datetime.min.time()))
 
     lines = []
     for e in events:
-        start_raw = e["start"].get("dateTime", e["start"].get("date", ""))
-        if "T" in start_raw:
-            dt = datetime.fromisoformat(start_raw)
-            time_str = dt.strftime("%H:%M")
+        if isinstance(e["start"], datetime):
+            time_str = e["start"].strftime("%H:%M")
         else:
             time_str = "All day"
-        lines.append(f"• {time_str} — {e.get('summary', '(no title)')}")
-
+        lines.append(f"• {time_str} — {e['summary']}")
     return "\n".join(lines)
 
 
 def get_this_week_events():
-    creds = get_creds()
-    service = build("calendar", "v3", credentials=creds)
-
-    now = datetime.now(timezone.utc)
-    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    from zoneinfo import ZoneInfo
+    berlin = ZoneInfo(TIMEZONE)
+    now_berlin = datetime.now(berlin)
+    start = now_berlin.replace(hour=0, minute=0, second=0, microsecond=0)
     end = start + timedelta(days=7)
 
-    result = service.events().list(
-        calendarId="primary",
-        timeMin=start.isoformat(),
-        timeMax=end.isoformat(),
-        singleEvents=True,
-        orderBy="startTime",
-    ).execute()
+    cal = _caldav_client()
+    results = cal.date_search(start=start, end=end, expand=True)
 
-    events = result.get("items", [])
-    if not events:
+    if not results:
         return "No events this week."
+
+    events = []
+    for r in results:
+        ve = r.vobject_instance.vevent
+        events.append(_parse_event(ve))
+    events.sort(key=lambda e: e["start"] if isinstance(e["start"], datetime) else datetime.combine(e["start"], datetime.min.time()))
 
     lines = []
     for e in events:
-        start_raw = e["start"].get("dateTime", e["start"].get("date", ""))
-        if "T" in start_raw:
-            dt = datetime.fromisoformat(start_raw)
-            time_str = dt.strftime("%a %d %b %H:%M")
+        if isinstance(e["start"], datetime):
+            time_str = e["start"].strftime("%a %d %b %H:%M")
         else:
-            dt = datetime.fromisoformat(start_raw)
-            time_str = dt.strftime("%a %d %b")
-        lines.append(f"• {time_str} — {e.get('summary', '(no title)')}")
-
+            time_str = datetime.combine(e["start"], datetime.min.time()).strftime("%a %d %b")
+        lines.append(f"• {time_str} — {e['summary']}")
     return "\n".join(lines)
 
 
@@ -363,54 +222,55 @@ def create_calendar_event(
     description: str = None,
 ) -> str:
     import uuid
-    creds = get_creds()
-    service = build("calendar", "v3", credentials=creds)
+    from zoneinfo import ZoneInfo
+    berlin = ZoneInfo(TIMEZONE)
 
     if start_time:
         if not end_time:
             st = datetime.strptime(f"{date}T{start_time}", "%Y-%m-%dT%H:%M")
             end_time = (st + timedelta(hours=1)).strftime("%H:%M")
-        event = {
-            "summary": summary,
-            "start": {"dateTime": f"{date}T{start_time}:00", "timeZone": TIMEZONE},
-            "end": {"dateTime": f"{date}T{end_time}:00", "timeZone": TIMEZONE},
-        }
+        dt_start = datetime.strptime(f"{date}T{start_time}", "%Y-%m-%dT%H:%M").replace(tzinfo=berlin)
+        dt_end = datetime.strptime(f"{date}T{end_time}", "%Y-%m-%dT%H:%M").replace(tzinfo=berlin)
+        all_day = False
     else:
-        end_date = (datetime.fromisoformat(date) + timedelta(days=1)).strftime("%Y-%m-%d")
-        event = {
-            "summary": summary,
-            "start": {"date": date},
-            "end": {"date": end_date},
-        }
+        dt_start = datetime.strptime(date, "%Y-%m-%d").date()
+        dt_end = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).date()
+        all_day = True
 
+    uid = str(uuid.uuid4())
+    if all_day:
+        ical = (
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ICARUS//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            f"UID:{uid}\r\n"
+            f"SUMMARY:{summary}\r\n"
+            f"DTSTART;VALUE=DATE:{dt_start.strftime('%Y%m%d')}\r\n"
+            f"DTEND;VALUE=DATE:{dt_end.strftime('%Y%m%d')}\r\n"
+        )
+    else:
+        ical = (
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ICARUS//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            f"UID:{uid}\r\n"
+            f"SUMMARY:{summary}\r\n"
+            f"DTSTART;TZID={TIMEZONE}:{dt_start.strftime('%Y%m%dT%H%M%S')}\r\n"
+            f"DTEND;TZID={TIMEZONE}:{dt_end.strftime('%Y%m%dT%H%M%S')}\r\n"
+        )
     if description:
-        event["description"] = description
-
-    if recurrence:
-        event["recurrence"] = [recurrence]
-
+        ical += f"DESCRIPTION:{description}\r\n"
     if location:
-        event["location"] = location
-
+        ical += f"LOCATION:{location}\r\n"
+    if recurrence:
+        ical += f"{recurrence}\r\n"
     if attendees:
-        event["attendees"] = [{"email": e.strip()} for e in attendees]
+        for a in attendees:
+            ical += f"ATTENDEE:mailto:{a.strip()}\r\n"
+    ical += "END:VEVENT\r\nEND:VCALENDAR\r\n"
 
-    if add_meet:
-        event["conferenceData"] = {
-            "createRequest": {
-                "requestId": str(uuid.uuid4()),
-                "conferenceSolutionKey": {"type": "hangoutsMeet"},
-            }
-        }
+    cal = _caldav_client()
+    cal.save_event(ical)
 
-    result = service.events().insert(
-        calendarId="primary",
-        body=event,
-        conferenceDataVersion=1 if add_meet else 0,
-        sendUpdates="all" if attendees else "none",
-    ).execute()
-
-    parts = [f"Created: {result.get('summary')} on {date}"]
+    parts = [f"Created: {summary} on {date}"]
     if recurrence:
         parts.append("(recurring)")
     if location:
@@ -418,43 +278,51 @@ def create_calendar_event(
     if attendees:
         parts.append(f"Invited: {', '.join(attendees)}")
     if add_meet:
-        entry_points = result.get("conferenceData", {}).get("entryPoints", [])
-        meet_link = next((ep["uri"] for ep in entry_points if ep.get("entryPointType") == "video"), "")
-        if meet_link:
-            parts.append(f"Meet: {meet_link}")
+        parts.append("Note: Google Meet links require the Calendar API — not supported via CalDAV.")
     return "\n".join(parts)
 
 
 def delete_calendar_event(event_id: str) -> str:
-    creds = get_creds()
-    service = build("calendar", "v3", credentials=creds)
-    service.events().delete(calendarId="primary", eventId=event_id).execute()
-    return f"Deleted event {event_id}."
+    cal = _caldav_client()
+    results = cal.date_search(
+        start=datetime.now(timezone.utc) - timedelta(days=365),
+        end=datetime.now(timezone.utc) + timedelta(days=365),
+        expand=True,
+    )
+    for r in results:
+        ve = r.vobject_instance.vevent
+        uid = str(getattr(ve, "uid", None) and ve.uid.value or "")
+        if uid == event_id or event_id in str(r.url):
+            r.delete()
+            return f"Deleted event {event_id}."
+    return f"Event {event_id} not found."
 
 
 def find_calendar_events(query: str, date: str = None) -> str:
-    creds = get_creds()
-    service = build("calendar", "v3", credentials=creds)
-    now = datetime.now(timezone.utc).isoformat()
-    params = {
-        "calendarId": "primary",
-        "q": query,
-        "timeMin": now,
-        "maxResults": 10,
-        "singleEvents": True,
-        "orderBy": "startTime",
-    }
+    from zoneinfo import ZoneInfo
+    berlin = ZoneInfo(TIMEZONE)
     if date:
-        params["timeMin"] = f"{date}T00:00:00Z"
-        params["timeMax"] = f"{date}T23:59:59Z"
-    result = service.events().list(**params).execute()
-    events = result.get("items", [])
-    if not events:
+        start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=berlin)
+        end = start + timedelta(days=1)
+    else:
+        start = datetime.now(berlin)
+        end = start + timedelta(days=30)
+
+    cal = _caldav_client()
+    results = cal.date_search(start=start, end=end, expand=True)
+    query_lower = query.lower()
+    matches = []
+    for r in results:
+        ve = r.vobject_instance.vevent
+        e = _parse_event(ve)
+        if query_lower in e["summary"].lower():
+            matches.append(e)
+    if not matches:
         return "No matching events found."
     lines = []
-    for e in events:
-        start = e["start"].get("dateTime", e["start"].get("date", ""))
-        lines.append(f"[ID:{e['id']}] {e.get('summary','(no title)')} — {start}")
+    for e in matches:
+        time_str = e["start"].strftime("%Y-%m-%d %H:%M") if isinstance(e["start"], datetime) else str(e["start"])
+        lines.append(f"[ID:{e['uid']}] {e['summary']} — {time_str}")
     return "\n".join(lines)
 
 
