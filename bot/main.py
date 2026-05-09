@@ -435,7 +435,6 @@ def main():
 
     app.job_queue.run_daily(morning_briefing, time=dtime(hour=6, minute=0, tzinfo=BERLIN))
     app.job_queue.run_daily(hermes_weekly_digest, time=dtime(hour=18, minute=30, tzinfo=BERLIN), days=(6,))
-    app.job_queue.run_repeating(check_new_emails, interval=900, first=60)
 
     @asynccontextmanager
     async def lifespan(_fast):
