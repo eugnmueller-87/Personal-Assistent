@@ -14,6 +14,25 @@ _CANCEL  = {"cancel", "abbrechen", "nein", "no", "discard", "verwerfen", "lösch
 
 logging.basicConfig(level=logging.INFO)
 
+
+def _clear_stale_pwa_history():
+    """Wipe stale PWA conversation history from Redis on startup."""
+    try:
+        url = os.environ.get("UPSTASH_REDIS_URL")
+        token = os.environ.get("UPSTASH_REDIS_TOKEN")
+        if url and token:
+            from upstash_redis import Redis
+            r = Redis(url=url, token=token)
+            from redis_ns import NS
+            key = f"{NS}:history:pwa"
+            r.delete(key)
+            logging.info(f"[PWA] cleared stale history key: {key}")
+    except Exception as e:
+        logging.warning(f"[PWA] startup history clear failed: {e}")
+
+
+_clear_stale_pwa_history()
+
 app = FastAPI()
 
 PWA_PIN = os.environ.get("PWA_PIN", "1234")
