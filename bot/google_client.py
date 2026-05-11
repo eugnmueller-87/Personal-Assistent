@@ -24,13 +24,24 @@ def _caldav_client():
     return client.calendar(url=CALDAV_URL)
 
 
+def _get_vevent(cal_result):
+    """Extract the VEVENT component from a caldav result object."""
+    vi = cal_result.vobject_instance
+    # vobject_instance is a VCALENDAR — find the VEVENT inside it
+    vevent = getattr(vi, "vevent", None)
+    if vevent is None:
+        # Try iterating contents for VEVENT
+        for component in getattr(vi, "contents", {}).get("vevent", []):
+            return component
+    return vevent
+
+
 def _parse_event(vevent) -> dict:
     """Extract summary, start, end from a vobject vevent component."""
     summary = str(getattr(vevent, "summary", None) and vevent.summary.value or "(no title)")
     dtstart = vevent.dtstart.value
     dtend = getattr(vevent, "dtend", None)
     dtend = dtend.value if dtend else dtstart
-    # Normalize to datetime
     if isinstance(dtstart, datetime):
         if dtstart.tzinfo is None:
             from zoneinfo import ZoneInfo
@@ -57,7 +68,9 @@ def get_today_events():
 
     events = []
     for r in results:
-        ve = r.vobject_instance.vevent
+        ve = _get_vevent(r)
+        if ve is None:
+            continue
         events.append(_parse_event(ve))
     events.sort(key=lambda e: e["start"] if isinstance(e["start"], datetime) else datetime.combine(e["start"], datetime.min.time()))
 
@@ -86,7 +99,9 @@ def get_this_week_events():
 
     events = []
     for r in results:
-        ve = r.vobject_instance.vevent
+        ve = _get_vevent(r)
+        if ve is None:
+            continue
         events.append(_parse_event(ve))
     events.sort(key=lambda e: e["start"] if isinstance(e["start"], datetime) else datetime.combine(e["start"], datetime.min.time()))
 
@@ -291,7 +306,9 @@ def delete_calendar_event(event_id: str) -> str:
         expand=True,
     )
     for r in results:
-        ve = r.vobject_instance.vevent
+        ve = _get_vevent(r)
+        if ve is None:
+            continue
         uid = str(getattr(ve, "uid", None) and ve.uid.value or "")
         if uid == event_id or event_id in str(r.url):
             r.delete()
@@ -314,7 +331,9 @@ def find_calendar_events(query: str, date: str = None) -> str:
     query_lower = query.lower()
     matches = []
     for r in results:
-        ve = r.vobject_instance.vevent
+        ve = _get_vevent(r)
+        if ve is None:
+            continue
         e = _parse_event(ve)
         if query_lower in e["summary"].lower():
             matches.append(e)
