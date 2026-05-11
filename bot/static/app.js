@@ -4,6 +4,34 @@ let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
 
+/* ─── Message History ─── */
+const HISTORY_KEY = 'icarus_chat_history';
+const MAX_MESSAGES = 100;
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(history) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-MAX_MESSAGES)));
+  } catch {}
+}
+
+function appendToHistory(type, text) {
+  const history = loadHistory();
+  history.push({ type, text, ts: Date.now() });
+  saveHistory(history);
+}
+
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+}
+
 /* ─── Elements ─── */
 const loginScreen   = document.getElementById('login-screen');
 const chatScreen    = document.getElementById('chat-screen');
@@ -84,14 +112,19 @@ function showChat() {
   loginScreen.classList.add('hidden');
   chatScreen.classList.remove('hidden');
   msgInput.focus();
-  if (!messages.children.length) {
-    addBubble('bot', 'ICARUS online. How can I help?');
+  const history = loadHistory();
+  if (history.length === 0) {
+    addBubble('bot', 'ICARUS online. How can I help?', false);
+  } else {
+    history.forEach(m => addBubble(m.type, m.text, false));
+    messages.scrollTop = messages.scrollHeight;
   }
 }
 
 /* ─── Logout ─── */
 btnLogout.addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });
+  clearHistory();
   chatScreen.classList.add('hidden');
   loginScreen.classList.remove('hidden');
   pin = '';
@@ -100,12 +133,13 @@ btnLogout.addEventListener('click', async () => {
 });
 
 /* ─── Chat ─── */
-function addBubble(type, text) {
+function addBubble(type, text, save = true) {
   const div = document.createElement('div');
   div.className = `bubble ${type}`;
   div.textContent = text;
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+  if (save) appendToHistory(type, text);
   return div;
 }
 
