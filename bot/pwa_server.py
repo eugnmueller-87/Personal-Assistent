@@ -184,6 +184,14 @@ def _build_reply(result: str) -> dict:
     return {"reply": result}
 
 
+@app.post("/api/clear")
+async def clear_context(request: Request):
+    _auth(request)
+    from claude_router import clear_history
+    clear_history(USER_ID)
+    return {"ok": True}
+
+
 @app.post("/api/chat")
 async def chat(request: Request):
     _auth(request)

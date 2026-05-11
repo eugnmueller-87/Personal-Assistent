@@ -44,6 +44,7 @@ const btnSend       = document.getElementById('btn-send');
 const btnMic        = document.getElementById('btn-mic');
 const hudMic        = document.getElementById('hud-mic');
 const btnPhoto      = document.getElementById('btn-photo');
+const btnClear      = document.getElementById('btn-clear');
 const btnLogout     = document.getElementById('btn-logout');
 const fileInput     = document.getElementById('file-input');
 
@@ -120,6 +121,14 @@ function showChat() {
     messages.scrollTop = messages.scrollHeight;
   }
 }
+
+/* ─── Clear context ─── */
+btnClear.addEventListener('click', async () => {
+  await fetch('/api/clear', { method: 'POST' });
+  clearHistory();
+  messages.innerHTML = '';
+  addBubble('bot', 'Context cleared. Fresh start.', false);
+});
 
 /* ─── Logout ─── */
 btnLogout.addEventListener('click', async () => {
