@@ -9,7 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.header import decode_header as _decode_header
 
 TIMEZONE = "Europe/Berlin"
-CALDAV_URL = "https://apidata.googleusercontent.com/caldav/v2/eugnmueller@googlemail.com/events/"
+CALDAV_URL = "https://www.google.com/calendar/dav/eugnmueller@googlemail.com/events/"
 
 GMAIL_USER = os.environ.get("GMAIL_USER", "eugnmueller@googlemail.com")
 IMAP_HOST = "imap.gmail.com"
