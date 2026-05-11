@@ -53,6 +53,18 @@ def _parse_event(vevent) -> dict:
     return {"summary": summary, "start": dtstart, "end": dtend, "uid": uid}
 
 
+def _sort_key(e):
+    """Return a timezone-aware datetime for sorting, regardless of event type."""
+    from zoneinfo import ZoneInfo
+    s = e["start"]
+    if isinstance(s, datetime):
+        if s.tzinfo is None:
+            return s.replace(tzinfo=ZoneInfo(TIMEZONE))
+        return s
+    # date object — convert to midnight Berlin time
+    return datetime(s.year, s.month, s.day, tzinfo=ZoneInfo(TIMEZONE))
+
+
 def get_today_events():
     from zoneinfo import ZoneInfo
     berlin = ZoneInfo(TIMEZONE)
@@ -72,7 +84,7 @@ def get_today_events():
         if ve is None:
             continue
         events.append(_parse_event(ve))
-    events.sort(key=lambda e: e["start"] if isinstance(e["start"], datetime) else datetime.combine(e["start"], datetime.min.time()))
+    events.sort(key=_sort_key)
 
     lines = []
     for e in events:
@@ -103,7 +115,7 @@ def get_this_week_events():
         if ve is None:
             continue
         events.append(_parse_event(ve))
-    events.sort(key=lambda e: e["start"] if isinstance(e["start"], datetime) else datetime.combine(e["start"], datetime.min.time()))
+    events.sort(key=_sort_key)
 
     lines = []
     for e in events:
