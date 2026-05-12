@@ -263,6 +263,18 @@ def _headers():
 
 _URGENCY_SCORE = {"HIGH": "⚡ 9/10", "MEDIUM": "🔶 6/10", "LOW": "🔵 3/10"}
 
+_CATEGORY_EMOJI = {
+    "EARNINGS":        "💰 Earnings",
+    "RESEARCH_PAPER":  "🔬 Research",
+    "SUPPLY_CHAIN":    "🔗 Supply Chain",
+    "FUNDING":         "💵 Funding",
+    "PARTNERSHIP":     "🤝 Partnership",
+    "ACQUISITION":     "🏢 Acquisition",
+    "LAYOFFS_HIRING":  "👥 Hiring & Layoffs",
+    "PRODUCT_RELEASE": "🚀 Product Release",
+    "OTHER":           "📰 Other",
+}
+
 
 def _format_item(item: dict) -> str:
     emoji = item.get("emoji", "📰")
@@ -514,9 +526,17 @@ def _hermes_briefing(limit: int = 10) -> str:
         signals = data.get("signals", [])
         if not signals:
             return "No significant Hermes signals yet — data accumulates as crawlers run."
-        lines = [f"Hermes briefing — top {len(signals)} signals:"]
+        # Group by signal_type
+        grouped: dict = {}
         for item in signals:
-            lines.append(_format_item(item))
+            cat = item.get("signal_type", "OTHER")
+            grouped.setdefault(cat, []).append(item)
+        lines = [f"Hermes briefing — {len(signals)} signals:"]
+        for cat, items in grouped.items():
+            label = _CATEGORY_EMOJI.get(cat, f"📰 {cat.title()}")
+            lines.append(f"\n*{label}*")
+            for item in items:
+                lines.append(_format_item(item))
         return "\n".join(lines)
     except Exception as e:
         return f"Hermes briefing failed: {e}"
