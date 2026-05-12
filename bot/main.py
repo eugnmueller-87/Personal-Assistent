@@ -236,7 +236,10 @@ async def _reply_with_approval(update: Update, user_id: str, text: str):
         ]])
         await update.message.reply_text(f"Draft:\n\n{post_text}", reply_markup=keyboard)
     else:
-        await update.message.reply_text(text)
+        try:
+            await update.message.reply_text(text, parse_mode="Markdown")
+        except Exception:
+            await update.message.reply_text(text)
 
 
 async def handle_reply_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -319,6 +322,7 @@ async def morning_briefing(context):
         await context.bot.send_message(
             chat_id=os.environ["TELEGRAM_CHAT_ID"],
             text=f"☀️ Morning brief\n\n{brief}{market_section}",
+            parse_mode="Markdown",
         )
         log_event("morning_briefing", "sent ok")
     except Exception as e:

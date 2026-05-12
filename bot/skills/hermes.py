@@ -273,12 +273,14 @@ def _format_item(item: dict) -> str:
     date = item.get("published", "")[:10]
     url = item.get("url", "")
     reason = item.get("significance_reason", "")
-    line = f"{emoji} {score} — {supplier}: {title} ({date})"
+    # Use Markdown hyperlink if URL available
     if url:
-        line += f"\n   {url}"
+        header = f"{emoji} {score} — {supplier}: [{title}]({url}) ({date})"
+    else:
+        header = f"{emoji} {score} — {supplier}: {title} ({date})"
     if reason:
-        line += f"\n   {reason[:150]}"
-    return line
+        return f"{header}\n   _{reason[:150]}_"
+    return header
 
 
 def _hermes_digest(refresh: bool = False) -> str:
