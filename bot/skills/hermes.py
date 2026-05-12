@@ -261,16 +261,23 @@ def _headers():
     return {"x-api-key": key} if key else {}
 
 
+_URGENCY_SCORE = {"HIGH": "⚡ 9/10", "MEDIUM": "🔶 6/10", "LOW": "🔵 3/10"}
+
+
 def _format_item(item: dict) -> str:
     emoji = item.get("emoji", "📰")
-    urgency = item.get("urgency", "")
+    urgency = item.get("urgency", "MEDIUM")
+    score = _URGENCY_SCORE.get(urgency, "🔶 6/10")
     supplier = item.get("supplier", "")
     title = item.get("title", "")[:120]
     date = item.get("published", "")[:10]
+    url = item.get("url", "")
     reason = item.get("significance_reason", "")
-    line = f"{emoji} [{urgency}] {supplier} — {title} ({date})"
+    line = f"{emoji} {score} — {supplier}: {title} ({date})"
+    if url:
+        line += f"\n   {url}"
     if reason:
-        line += f"\n   {reason[:120]}"
+        line += f"\n   {reason[:150]}"
     return line
 
 
