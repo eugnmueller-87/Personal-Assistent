@@ -1,23 +1,26 @@
 import os
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _HADES_DEFAULT_URL = "https://hades-production-b86a.up.railway.app"
+_SPENDLENS_DEFAULT_URL = "https://spendlens-production.up.railway.app"
 
 TOOLS = [
     {
-        "name": "hades_status",
+        "name": "hades_supplier_lookup",
         "description": (
-            "Check whether a supplier has been onboarded and due-diligenced by Hades. "
-            "Use when the user asks: 'is X onboarded?', 'have we checked X?', "
-            "'do we have a DD report for X?', 'is X in the system?', "
-            "'has Hades investigated X?'. Returns onboarded status and latest risk verdict."
+            "Check whether a supplier is known to SpendLens (active spend data) AND "
+            "whether Hades has ever run due diligence on them. Combines both checks "
+            "into one answer. Use when the user asks: 'is X onboarded?', 'do we have X?', "
+            "'have we checked X?', 'is X already a supplier?', 'show me the onboarding status for X', "
+            "'do we have a DD report for X?', 'is X in the system?'."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "company": {
                     "type": "string",
-                    "description": "Supplier or company name to check, e.g. 'Siemens AG', 'Bosch', 'H&M Group'.",
+                    "description": "Supplier or company name, e.g. 'Bechtle', 'Siemens AG', 'Bosch'.",
                 },
             },
             "required": ["company"],
@@ -70,6 +73,10 @@ def _get_url() -> tuple[str, str | None]:
     if not raw.startswith("http"):
         return "", f"HADES_URL misconfigured: '{raw[:60]}'"
     return raw, None
+
+
+def _get_spendlens_url() -> str:
+    return os.environ.get("SPENDLENS_URL", _SPENDLENS_DEFAULT_URL).strip().rstrip("/")
 
 
 def _risk_badge(level: str) -> str:
@@ -142,31 +149,99 @@ def _format_latest(record: dict) -> str:
     return "\n".join(lines)
 
 
-def _hades_status(company: str) -> str:
+def _fetch_hades_latest(company: str) -> dict | None:
+    """Returns latest audit record dict, None if not found, raises on error."""
     url, err = _get_url()
     if err:
-        return err
-    try:
-        r = requests.get(f"{url}/audit/{company}/latest", timeout=10)
-        if r.status_code == 404:
-            return (
-                f"{company} has NOT been onboarded or investigated by Hades yet.\n"
-                f"To run a full DD check, say: 'Hades, investigate {company}'."
-            )
-        r.raise_for_status()
-        record = r.json()
-        date = record.get("investigated_at", "?")[:10]
-        level = record.get("risk_level", "?")
-        rec = record.get("recommendation", "?")
-        score = record.get("overall_risk_score", "?")
-        return (
-            f"{company} is onboarded. Last checked: {date}\n"
-            f"Risk: {_risk_badge(level)} {level} ({score}/10)  |  "
-            f"Verdict: {_recommendation_badge(rec)} {rec}\n"
-            f"Say 'pull the DD report for {company}' for the full breakdown."
+        raise RuntimeError(err)
+    r = requests.get(f"{url}/audit/{company}/latest", timeout=10)
+    if r.status_code == 404:
+        return None
+    r.raise_for_status()
+    return r.json()
+
+
+def _fetch_spendlens_vendor(company: str) -> dict | None:
+    """Returns SpendLens vendor dict, None if not found, raises on error."""
+    sl_url = _get_spendlens_url()
+    r = requests.get(f"{sl_url}/api/suppliers/lookup/{company}", timeout=10)
+    r.raise_for_status()
+    data = r.json()
+    return data if data.get("found") else None
+
+
+def _hades_supplier_lookup(company: str) -> str:
+    """Run SpendLens vendor lookup + Hades audit check in parallel, merge into one answer."""
+    sl_result = None
+    hades_result = None
+    sl_error = None
+    hades_error = None
+
+    def fetch_sl():
+        return _fetch_spendlens_vendor(company)
+
+    def fetch_hades():
+        return _fetch_hades_latest(company)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        sl_future = pool.submit(fetch_sl)
+        hades_future = pool.submit(fetch_hades)
+        for future in as_completed([sl_future, hades_future]):
+            if future is sl_future:
+                try:
+                    sl_result = future.result()
+                except Exception as e:
+                    sl_error = str(e)
+            else:
+                try:
+                    hades_result = future.result()
+                except Exception as e:
+                    hades_error = str(e)
+
+    lines = [f"Supplier Status — {company}"]
+    lines.append("")
+
+    # SpendLens block
+    if sl_error:
+        lines.append(f"SpendLens: unavailable ({sl_error[:60]})")
+    elif sl_result:
+        spend = sl_result.get("total_spend_eur") or 0
+        spend_str = f"€{spend/1000:.1f}M" if spend >= 1000 else f"€{spend:,.0f}"
+        cat = sl_result.get("category") or "unknown category"
+        last = sl_result.get("last_seen") or "?"
+        txn = sl_result.get("transaction_count") or 0
+        country = sl_result.get("country") or ""
+        country_str = f" ({country})" if country else ""
+        single = " ⚠️ Single source" if sl_result.get("single_source") else ""
+        lines.append(f"SpendLens: ✅ Active supplier{country_str}")
+        lines.append(f"  Category: {cat}{single}")
+        lines.append(f"  Spend: {spend_str}  |  {txn} transactions  |  Last seen: {last}")
+    else:
+        lines.append(f"SpendLens: ❌ Not in spend data — no transactions recorded for '{company}'")
+
+    lines.append("")
+
+    # Hades block
+    if hades_error:
+        lines.append(f"Hades DD: unavailable ({hades_error[:60]})")
+    elif hades_result:
+        date = hades_result.get("investigated_at", "?")[:10]
+        level = hades_result.get("risk_level", "?")
+        rec = hades_result.get("recommendation", "?")
+        score = hades_result.get("overall_risk_score", "?")
+        lksg = hades_result.get("lksg_signal") or ""
+        lksg_str = f"  |  LkSG: {lksg}" if lksg else ""
+        lines.append(f"Hades DD: ✅ Investigated — last checked {date}")
+        lines.append(
+            f"  Risk: {_risk_badge(level)} {level} ({score}/10)  |  "
+            f"Verdict: {_recommendation_badge(rec)} {rec}{lksg_str}"
         )
-    except Exception as e:
-        return f"Hades status check failed: {e}"
+        lines.append(f"  Say 'pull the DD report for {company}' for full breakdown.")
+    else:
+        lines.append("Hades DD: ❌ Not yet investigated")
+        lines.append(f"  → Say 'investigate {company}' to run a full DD check.")
+
+    return "\n".join(lines)
 
 
 def _hades_report(company: str) -> str:
@@ -222,8 +297,8 @@ def _hades_audit(company: str) -> str:
 
 
 def handle(name: str, inputs: dict, user_id: str = "default"):
-    if name == "hades_status":
-        return _hades_status(inputs["company"])
+    if name == "hades_supplier_lookup":
+        return _hades_supplier_lookup(inputs["company"])
     if name == "hades_report":
         return _hades_report(inputs["company"])
     if name == "hades_audit":
