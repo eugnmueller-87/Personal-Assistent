@@ -97,6 +97,7 @@ _COMPLEX_SIGNALS = [
     "urgent", "overview", "everything", "decision",
     "why", "how does", "what's the difference",
     "hermes", "herm", "germ",  # catch typos like "germes"
+    "hades", "supplier", "onboard", "dd report", "due diligence", "risk score", "audit",
     # context-referencing — always need conversation history
     "she ", "he ", "her ", "him ", "they ", "their ",
     "what did", "what does", "what did she", "what did he",
@@ -146,6 +147,25 @@ def route(user_message: str, user_id: str = "default") -> str:
         "OAuth flow, no token refresh, no 'reconnect your Google account'. "
         "If calendar or email fails, the issue is a network error or a server-side problem — "
         "NEVER tell the user to reconnect Google, re-authenticate, or refresh any token.\n\n"
+        "CRITICAL: You DO have access to Hades (supplier due diligence) and Hermes (market intelligence). "
+        "hades_status, hades_report, hades_audit are ALL available to you. "
+        "Use them whenever the user asks about supplier onboarding, DD reports, risk scores, or audit history. "
+        "NEVER say you can't access Hades or that a supplier's DD status is unknown — always call a Hades tool first.\n\n"
+        "Hades rules:\n"
+        "- hades_status: use when the user asks whether a supplier is onboarded, has been checked, "
+        "or is in the system — 'is X onboarded?', 'have we done DD on X?', 'do we have X in Hades?'. "
+        "Returns a one-line verdict with the last risk level and recommendation.\n"
+        "- hades_report: use when the user wants to SEE a DD report — 'pull the report for X', "
+        "'show me the onboarding report for X', 'what was Hades' verdict on X?', "
+        "'what is the risk score for X?', 'show me the LkSG signal for X', "
+        "'what are the next steps for X?'. Returns full breakdown with all risk dimensions.\n"
+        "- hades_audit: use when the user asks about history or changes over time — "
+        "'show me the audit trail for X', 'how many times have we investigated X?', "
+        "'has the risk score changed for X?', 'when was X last checked?'. "
+        "Returns all past investigations in reverse-chronological order.\n"
+        "When presenting Hades results, always lead with the risk badge and recommendation. "
+        "Format risk levels as: Low=green, Medium=yellow, High=red, Critical=alarm. "
+        "If a supplier is not found (404), tell the user clearly and offer to trigger a new investigation.\n\n"
         "CRITICAL: You DO have access to Hermes. hermes_greet, hermes_briefing, hermes_query, "
         "hermes_search, hermes_trends, hermes_digest, hermes_profile, hermes_crawl, "
         "hermes_watch, hermes_delta, hermes_enrich, hermes_chart are ALL available to you. "

@@ -3,7 +3,7 @@ import importlib
 from audit_log import log_event
 
 _SKILLS = []
-for _mod in ["calendar", "email", "github", "search", "maps", "shopping", "linkedin", "hermes"]:
+for _mod in ["calendar", "email", "github", "search", "maps", "shopping", "linkedin", "hermes", "hades"]:
     try:
         _SKILLS.append(importlib.import_module(f".{_mod}", package="skills"))
         logging.info(f"[ICARUS] skill loaded: {_mod}")
